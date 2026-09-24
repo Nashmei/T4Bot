@@ -32,7 +32,8 @@ targets:
         INFOPLIST_KEY_UIRequiresFullScreen: YES
         INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: NO
         SUPPORTS_MACCATALYST: NO
-        TARGETED_DEVICE_FAMILY: "1"\n        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
         CODE_SIGN_STYLE: Automatic
     scheme:
       testTargets:
