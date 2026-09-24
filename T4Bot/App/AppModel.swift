@@ -260,17 +260,10 @@ final class AppModel: ObservableObject {
             !token.isEmpty
         else { return }
 
-        let preferences = [
-            "trade_opened": true,
-            "trade_closed": true,
-            "profit_protection": true,
-            "engine_alerts": true,
-            "connection_alerts": true
-        ]
         _ = try? await client.registerNotifications(
             token: token,
             enabled: notifications.outsideEnabled,
-            preferences: preferences,
+            preferences: notifications.serverPreferences,
             using: configuration
         )
     }
