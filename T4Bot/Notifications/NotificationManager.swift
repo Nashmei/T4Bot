@@ -201,8 +201,9 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             content.threadIdentifier = "t4bot-trades"
         }
 
+        let ticketID = alert.ticket.map { String($0) } ?? UUID().uuidString
         let request = UNNotificationRequest(
-            identifier: "t4bot.\(alert.kind.rawValue).\(alert.ticket.map(String.init) ?? UUID().uuidString).\(UUID().uuidString)",
+            identifier: "t4bot.\(alert.kind.rawValue).\(ticketID).\(UUID().uuidString)",
             content: content,
             trigger: nil
         )
@@ -239,10 +240,18 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             pnl: alert.pnl
         )
 
+        let relevanceScore: Double
+        switch alert.kind {
+        case .tradeClosed:
+            relevanceScore = 100
+        case .tradeOpened, .profitProtection:
+            relevanceScore = 90
+        }
+
         let content = ActivityContent(
             state: state,
             staleDate: Date().addingTimeInterval(15),
-            relevanceScore: alert.kind == .tradeClosed ? 100 : 90
+            relevanceScore: relevanceScore
         )
 
         if let active = activity {
