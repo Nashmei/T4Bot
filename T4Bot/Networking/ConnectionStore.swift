@@ -10,34 +10,49 @@ final class ConnectionStore: ObservableObject {
     @Published var baseURLString: String
     @Published var token: String
     @Published var validationMessage: String?
+    @Published private(set) var isConfigured: Bool
 
     init() {
-        baseURLString = UserDefaults.standard.string(forKey: Keys.baseURL) ?? ""
-        token = KeychainStore.read(account: Keys.tokenAccount) ?? ""
+        let storedURL = UserDefaults.standard.string(forKey: Keys.baseURL) ?? ""
+        let storedToken = KeychainStore.read(account: Keys.tokenAccount) ?? ""
+        baseURLString = storedURL
+        token = storedToken
+        isConfigured = APIConfiguration(baseURLString: storedURL, token: storedToken) != nil
     }
 
+    /// The active, persisted connection used by the app after a successful save.
     var configuration: APIConfiguration? {
-        APIConfiguration(baseURLString: baseURLString, token: token)
+        guard isConfigured else { return nil }
+        return APIConfiguration(baseURLString: baseURLString, token: token)
     }
 
-    var isConfigured: Bool {
-        configuration != nil
+    /// A draft connection built from the fields currently being edited.
+    var candidateConfiguration: APIConfiguration? {
+        APIConfiguration(baseURLString: baseURLString, token: token)
     }
 
     @discardableResult
     func save() -> Bool {
-        guard configuration != nil else {
+        guard candidateConfiguration != nil else {
             validationMessage = "استخدم رابط HTTPS صالحاً وأدخل رمز الوصول."
             return false
         }
 
         do {
-            UserDefaults.standard.set(baseURLString.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Keys.baseURL)
-            try KeychainStore.save(token.trimmingCharacters(in: .whitespacesAndNewlines), account: Keys.tokenAccount)
+            UserDefaults.standard.set(
+                baseURLString.trimmingCharacters(in: .whitespacesAndNewlines),
+                forKey: Keys.baseURL
+            )
+            try KeychainStore.save(
+                token.trimmingCharacters(in: .whitespacesAndNewlines),
+                account: Keys.tokenAccount
+            )
             validationMessage = nil
+            isConfigured = true
             return true
         } catch {
             validationMessage = "تعذر حفظ رمز الوصول في Keychain."
+            isConfigured = false
             return false
         }
     }
@@ -48,5 +63,6 @@ final class ConnectionStore: ObservableObject {
         baseURLString = ""
         token = ""
         validationMessage = nil
+        isConfigured = false
     }
 }
