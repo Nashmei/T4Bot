@@ -21,7 +21,8 @@ struct SettingsView: View {
                         HStack {
                             Label("اختيار الأزواج من MT5", systemImage: "list.bullet.rectangle")
                             Spacer()
-                            Text("(selectedSymbols.count)")
+                            Text("\(selectedSymbols.count)")
+                                .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -48,27 +49,77 @@ struct SettingsView: View {
                     numericRow("الحماية %", value: $draft.protectionPct)
                     numericRow("مدة الصفقة بالدقائق", value: $draft.maxTradeMinutes)
 
-                    Stepper("حد المراكز: (draft.maxPositions)", value: $draft.maxPositions, in: 1...10)
-                    Stepper("حد الخسائر: (draft.maxConsecutiveLosses)", value: $draft.maxConsecutiveLosses, in: 0...20)
+                    Stepper("حد المراكز: \(draft.maxPositions)", value: $draft.maxPositions, in: 1...10)
+                    Stepper("حد الخسائر: \(draft.maxConsecutiveLosses)", value: $draft.maxConsecutiveLosses, in: 0...20)
                     numericRow("حد Equity اليومي %", value: $draft.dailyLossLimitPct)
                 }
 
                 Section("الإشعارات") {
-                    Toggle("الجزيرة التفاعلية داخل التطبيق", isOn: $notificationManager.inAppEnabled)
+                    Toggle("الجزيرة التفاعلية / Live Activity", isOn: $notificationManager.inAppEnabled)
                     Toggle("إشعارات خارج التطبيق", isOn: $notificationManager.outsideEnabled)
+
                     Toggle("فتح صفقة", isOn: $notificationManager.tradeOpened)
                     Toggle("إغلاق ونتيجة الصفقة", isOn: $notificationManager.tradeClosed)
                     Toggle("حماية الربح", isOn: $notificationManager.profitProtection)
                     Toggle("تنبيهات المحرك", isOn: $notificationManager.engineAlerts)
                     Toggle("اتصال MT5", isOn: $notificationManager.connectionAlerts)
 
+                    LabeledContent("Live Activities") {
+                        Label(
+                            notificationManager.liveActivitiesEnabled ? "متاحة" : "غير متاحة",
+                            systemImage: notificationManager.liveActivitiesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
+                        )
+                        .foregroundStyle(notificationManager.liveActivitiesEnabled ? .green : .red)
+                    }
+
+                    LabeledContent("Push") {
+                        Text(notificationManager.pushStatusText)
+                            .font(.caption)
+                            .foregroundStyle(notificationManager.deviceToken == nil ? .secondary : .green)
+                    }
+
+                    if let status = appModel.notificationStatus {
+                        LabeledContent("خادم APNs") {
+                            Text(status.configured ? "جاهز" : "غير مهيأ")
+                                .foregroundStyle(status.configured ? .green : .orange)
+                        }
+                        LabeledContent("الأجهزة المسجلة", value: "\(status.registeredDevices)")
+                    }
+
                     Button {
-                        Task { await notificationManager.requestAuthorization() }
+                        Task {
+                            await notificationManager.requestAuthorization()
+                            await appModel.refreshNotificationStatus()
+                        }
                     } label: {
                         Label("تفعيل صلاحية الإشعارات", systemImage: "bell.badge.fill")
                     }
 
-                    Text("الجزيرة التفاعلية تستخدم Live Activity. إشعارات الخارج تُرسل عبر APNs عند تفعيل مفاتيح المزود على خادم Mtbot.")
+                    Button {
+                        Task {
+                            appModel.operationMessage = await notificationManager.testLiveActivity(
+                                account: appModel.snapshot?.account
+                            )
+                        }
+                    } label: {
+                        Label("اختبار الجزيرة التفاعلية", systemImage: "waveform.path.ecg")
+                    }
+
+                    Button {
+                        Task {
+                            appModel.operationMessage = await notificationManager.testLocalNotification()
+                        }
+                    } label: {
+                        Label("اختبار إشعار iOS", systemImage: "bell.and.waves.left.and.right.fill")
+                    }
+
+                    Button {
+                        Task { await appModel.testServerPush() }
+                    } label: {
+                        Label("اختبار Push من Mtbot", systemImage: "paperplane.fill")
+                    }
+
+                    Text("اختبار الجزيرة يعمل محلياً على الجهاز. أما Push خارج التطبيق فيحتاج أن يكون التطبيق موقّعاً بصلاحية APNs وأن يكون مزود APNs مضبوطاً على خادم Mtbot.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -89,7 +140,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Text("T4Bot يعرض الرموز الفعلية التي يوفرها MT5 على الخادم. لا توجد قائمة أزواج ثابتة داخل التطبيق.")
+                    Text("T4Bot يعرض جميع الرموز التي يرجعها MT5 مباشرة، بما فيها رموز البروكر ذات اللاحقات.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -97,12 +148,17 @@ struct SettingsView: View {
             .navigationTitle("الإعدادات")
             .onAppear {
                 loadSnapshot(force: true)
-                Task { await appModel.loadSymbols() }
+                Task {
+                    await appModel.loadSymbols()
+                    await appModel.refreshNotificationStatus()
+                }
             }
             .onChange(of: appModel.snapshot) { _, _ in
                 loadSnapshot(force: false)
             }
-            .onChange(of: draft) { _, _ in hasLocalEdits = true }
+            .onChange(of: draft) { _, _ in
+                hasLocalEdits = true
+            }
             .sheet(isPresented: $showSymbolPicker) {
                 SymbolPickerView(
                     available: appModel.availableSymbols,
@@ -144,8 +200,18 @@ private struct SymbolPickerView: View {
     @State private var query = ""
 
     private var filtered: [String] {
-        guard !query.isEmpty else { return available }
-        return available.filter { $0.localizedCaseInsensitiveContains(query) }
+        let source = query.isEmpty
+            ? available
+            : available.filter { $0.localizedCaseInsensitiveContains(query) }
+
+        return source.sorted { lhs, rhs in
+            let leftSelected = selection.contains(lhs)
+            let rightSelected = selection.contains(rhs)
+            if leftSelected != rightSelected {
+                return leftSelected && !rightSelected
+            }
+            return lhs.localizedStandardCompare(rhs) == .orderedAscending
+        }
     }
 
     var body: some View {
@@ -157,27 +223,33 @@ private struct SymbolPickerView: View {
                             selection = Set(available)
                         }
                         Spacer()
+                        Text("\(selection.count) مختار")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        Spacer()
                         Button("إلغاء الكل", role: .destructive) {
                             selection.removeAll()
                         }
                     }
                 }
 
-                ForEach(filtered, id: \.self) { symbol in
-                    Button {
-                        if selection.contains(symbol) {
-                            selection.remove(symbol)
-                        } else {
-                            selection.insert(symbol)
-                        }
-                    } label: {
-                        HStack {
-                            Text(symbol)
-                                .foregroundStyle(.primary)
-                            Spacer()
+                Section("رموز MT5") {
+                    ForEach(filtered, id: \.self) { symbol in
+                        Button {
                             if selection.contains(symbol) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.blue)
+                                selection.remove(symbol)
+                            } else {
+                                selection.insert(symbol)
+                            }
+                        } label: {
+                            HStack {
+                                Text(symbol)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selection.contains(symbol) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.blue)
+                                }
                             }
                         }
                     }
