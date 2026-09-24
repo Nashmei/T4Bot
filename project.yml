@@ -10,7 +10,7 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-    MARKETING_VERSION: "1.1.0"
+    MARKETING_VERSION: "1.2.0"
     CURRENT_PROJECT_VERSION: "1"
     VERSIONING_SYSTEM: apple-generic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -43,6 +43,15 @@ targets:
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: T4Bot/T4Bot.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    postBuildScripts:
+      - name: Strip UISupportedDevices
+        script: |
+          set -e
+          PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+          if [ -f "$PLIST" ]; then
+            /usr/libexec/PlistBuddy -c "Delete :UISupportedDevices" "$PLIST" >/dev/null 2>&1 || true
+            /usr/bin/plutil -lint "$PLIST"
+          fi
     scheme:
       testTargets:
         - T4BotTests
@@ -57,13 +66,21 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nashmei.t4bot.liveactivity
         PRODUCT_NAME: T4BotLiveActivity
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: T4Bot Live
-        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
-        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: T4BotLiveActivity/Info.plist
         SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: T4BotLiveActivity/T4BotLiveActivity.entitlements
+    postBuildScripts:
+      - name: Strip UISupportedDevices
+        script: |
+          set -e
+          PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+          if [ -f "$PLIST" ]; then
+            /usr/libexec/PlistBuddy -c "Delete :UISupportedDevices" "$PLIST" >/dev/null 2>&1 || true
+            /usr/bin/plutil -lint "$PLIST"
+          fi
 
   T4BotTests:
     type: bundle.unit-test
