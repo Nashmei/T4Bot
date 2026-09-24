@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var loadedAccount: Int64?
     @State private var hasLocalEdits = false
     @State private var showSymbolPicker = false
+    @FocusState private var numericFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -56,40 +57,35 @@ struct SettingsView: View {
 
                 Section("الإشعارات") {
                     Toggle("الجزيرة التفاعلية / Live Activity", isOn: $notificationManager.inAppEnabled)
-                    Toggle("إشعارات خارج التطبيق", isOn: $notificationManager.outsideEnabled)
+                    Toggle("إشعار iOS محلي", isOn: $notificationManager.outsideEnabled)
 
                     Toggle("فتح صفقة", isOn: $notificationManager.tradeOpened)
                     Toggle("إغلاق ونتيجة الصفقة", isOn: $notificationManager.tradeClosed)
                     Toggle("حماية الربح", isOn: $notificationManager.profitProtection)
-                    Toggle("تنبيهات المحرك", isOn: $notificationManager.engineAlerts)
-                    Toggle("اتصال MT5", isOn: $notificationManager.connectionAlerts)
 
                     LabeledContent("Live Activities") {
                         Label(
                             notificationManager.liveActivitiesEnabled ? "متاحة" : "غير متاحة",
                             systemImage: notificationManager.liveActivitiesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
                         )
-                        .foregroundStyle(notificationManager.liveActivitiesEnabled ? .green : .red)
+                        .foregroundStyle(notificationManager.liveActivitiesEnabled ? Color.green : Color.red)
                     }
 
-                    LabeledContent("Push") {
-                        Text(notificationManager.pushStatusText)
+                    LabeledContent("إشعارات iOS") {
+                        Text(notificationManager.authorizationStatusText)
                             .font(.caption)
-                            .foregroundStyle(notificationManager.deviceToken == nil ? Color.secondary : Color.green)
+                            .foregroundStyle(notificationManager.authorizationGranted ? Color.green : Color.secondary)
                     }
 
-                    if let status = appModel.notificationStatus {
-                        LabeledContent("خادم APNs") {
-                            Text(status.configured ? "جاهز" : "غير مهيأ")
-                                .foregroundStyle(status.configured ? .green : .orange)
-                        }
-                        LabeledContent("الأجهزة المسجلة", value: "\(status.registeredDevices)")
+                    LabeledContent("المصدر") {
+                        Text("WebSocket → الجهاز")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
                     }
 
                     Button {
                         Task {
                             await notificationManager.requestAuthorization()
-                            await appModel.refreshNotificationStatus()
                         }
                     } label: {
                         Label("تفعيل صلاحية الإشعارات", systemImage: "bell.badge.fill")
@@ -110,22 +106,17 @@ struct SettingsView: View {
                             appModel.operationMessage = await notificationManager.testLocalNotification()
                         }
                     } label: {
-                        Label("اختبار إشعار iOS", systemImage: "bell.and.waves.left.and.right.fill")
+                        Label("اختبار إشعار iOS المحلي", systemImage: "bell.and.waves.left.and.right.fill")
                     }
 
-                    Button {
-                        Task { await appModel.testServerPush() }
-                    } label: {
-                        Label("اختبار Push من Mtbot", systemImage: "paperplane.fill")
-                    }
-
-                    Text("اختبار الجزيرة يعمل محلياً على الجهاز. أما Push خارج التطبيق فيحتاج أن يكون التطبيق موقّعاً بصلاحية APNs وأن يكون مزود APNs مضبوطاً على خادم Mtbot.")
+                    Text("Mtbot يرسل حدث الصفقة عبر WebSocket فقط، وT4Bot يصنع الإشعار محلياً على الآيفون. لا نستخدم APNs Provider. إذا علّق iOS التطبيق بالكامل في الخلفية فلن يصل حدث WebSocket حتى يعود التطبيق للعمل.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
                 Section {
                     Button {
+                        numericFieldFocused = false
                         Task {
                             draft.symbols = selectedSymbols.sorted()
                             await appModel.update(settings: draft)
@@ -145,12 +136,22 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("الإعدادات")
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("تم") {
+                        numericFieldFocused = false
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
             .onAppear {
                 loadSnapshot(force: true)
                 Task {
                     await appModel.loadSymbols()
-                    await appModel.refreshNotificationStatus()
+                    await notificationManager.refreshAuthorizationStatus()
                 }
             }
             .onChange(of: appModel.snapshot) { _, _ in
@@ -158,12 +159,6 @@ struct SettingsView: View {
             }
             .onChange(of: draft) { _, _ in
                 hasLocalEdits = true
-            }
-            .onChange(of: notificationManager.outsideEnabled) { _, _ in
-                Task { await appModel.syncNotificationPreferences() }
-            }
-            .onChange(of: notificationManager.serverPreferences) { _, _ in
-                Task { await appModel.syncNotificationPreferences() }
             }
             .sheet(isPresented: $showSymbolPicker) {
                 SymbolPickerView(
@@ -193,6 +188,7 @@ struct SettingsView: View {
             TextField(title, value: value, format: .number.precision(.fractionLength(0...2)))
                 .multilineTextAlignment(.trailing)
                 .keyboardType(.decimalPad)
+                .focused($numericFieldFocused)
                 .frame(maxWidth: 110)
         }
     }
