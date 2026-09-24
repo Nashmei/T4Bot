@@ -1,0 +1,35 @@
+name: Validate iOS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: validate-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Prepare app icon assets
+        run: bash scripts/prepare_assets.sh
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Set build number
+        run: |
+          xcrun agvtool new-version -all "$GITHUB_RUN_NUMBER"
+
+
+      - name: Build for iOS Simulator
+        run: |
+          set -euo pipefail
+          xcodebuild             -project T4Bot.xcodeproj             -scheme T4Bot             -configuration Debug             -sdk iphonesimulator             -destination 'generic/platform=iOS Simulator'             CODE_SIGNING_ALLOWED=NO             build

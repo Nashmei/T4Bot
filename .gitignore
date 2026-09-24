@@ -1,0 +1,24 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Generated project
+T4Bot.xcodeproj/
+
+# Signing material
+*.p12
+*.mobileprovision
+*.cer
+ExportOptions.plist
+signing/
+
+# Local configuration
+.env
+*.local
+
+# macOS
+.DS_Store

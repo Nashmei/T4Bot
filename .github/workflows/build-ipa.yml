@@ -1,0 +1,76 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  unsigned-ipa:
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Prepare app icon assets
+        run: bash scripts/prepare_assets.sh
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Set build number
+        run: |
+          xcrun agvtool new-version -all "$GITHUB_RUN_NUMBER"
+
+
+      - name: Build iPhoneOS application
+        run: |
+          set -euo pipefail
+          xcodebuild             -project T4Bot.xcodeproj             -scheme T4Bot             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             -derivedDataPath "$RUNNER_TEMP/T4BotDerivedData"             CODE_SIGNING_ALLOWED=NO             CODE_SIGNING_REQUIRED=NO             CODE_SIGN_IDENTITY=""             build
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find "$RUNNER_TEMP/T4BotDerivedData/Build/Products/Release-iphoneos" -maxdepth 1 -type d -name 'T4Bot.app' -print -quit)"
+          test -n "$APP_PATH"
+          test -d "$APP_PATH"
+
+          APP_PLIST="$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedDevices" "$APP_PLIST" >/dev/null 2>&1 || true
+          if /usr/libexec/PlistBuddy -c "Print :UISupportedDevices" "$APP_PLIST" >/dev/null 2>&1; then
+            echo "UISupportedDevices is still present in app Info.plist"
+            exit 1
+          fi
+
+          LIVE_EXTENSION="$APP_PATH/PlugIns/T4BotLiveActivity.appex"
+          test -d "$LIVE_EXTENSION"
+          LIVE_PLIST="$LIVE_EXTENSION/Info.plist"
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedDevices" "$LIVE_PLIST" >/dev/null 2>&1 || true
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$LIVE_PLIST")" = "com.apple.widgetkit-extension"
+
+          STAGE="$RUNNER_TEMP/T4BotIPA"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/Payload"
+          ditto "$APP_PATH" "$STAGE/Payload/T4Bot.app"
+
+          (
+            cd "$STAGE"
+            /usr/bin/zip -qry "$GITHUB_WORKSPACE/T4Bot-unsigned.ipa" Payload
+          )
+
+          test -s "$GITHUB_WORKSPACE/T4Bot-unsigned.ipa"
+          shasum -a 256 "$GITHUB_WORKSPACE/T4Bot-unsigned.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: T4Bot-unsigned-ipa
+          path: T4Bot-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

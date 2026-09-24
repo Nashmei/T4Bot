@@ -1,0 +1,77 @@
+name: T4Bot
+
+options:
+  bundleIdPrefix: com.nashmei
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    MARKETING_VERSION: "1.2.0"
+    CURRENT_PROJECT_VERSION: "1"
+    VERSIONING_SYSTEM: apple-generic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+
+targets:
+  T4Bot:
+    type: application
+    platform: iOS
+    sources:
+      - path: T4Bot
+    dependencies:
+      - target: T4BotLiveActivity
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nashmei.t4bot
+        PRODUCT_NAME: T4Bot
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: T4Bot
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIRequiresFullScreen: YES
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: NO
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: YES
+        SUPPORTS_MACCATALYST: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: T4Bot/T4Bot.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    scheme:
+      testTargets:
+        - T4BotTests
+
+  T4BotLiveActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: T4BotLiveActivity
+      - path: T4Bot/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nashmei.t4bot.liveactivity
+        PRODUCT_NAME: T4BotLiveActivity
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: T4BotLiveActivity/Info.plist
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: T4BotLiveActivity/T4BotLiveActivity.entitlements
+
+  T4BotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: T4BotTests
+    dependencies:
+      - target: T4Bot
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nashmei.t4bot.tests
+        GENERATE_INFOPLIST_FILE: YES
