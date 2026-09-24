@@ -56,6 +56,11 @@ struct SettingsView: View {
                 Section("الإشعارات") {
                     Toggle("الجزيرة التفاعلية داخل التطبيق", isOn: $notificationManager.inAppEnabled)
                     Toggle("إشعارات خارج التطبيق", isOn: $notificationManager.outsideEnabled)
+                    Toggle("فتح صفقة", isOn: $notificationManager.tradeOpened)
+                    Toggle("إغلاق ونتيجة الصفقة", isOn: $notificationManager.tradeClosed)
+                    Toggle("حماية الربح", isOn: $notificationManager.profitProtection)
+                    Toggle("تنبيهات المحرك", isOn: $notificationManager.engineAlerts)
+                    Toggle("اتصال MT5", isOn: $notificationManager.connectionAlerts)
 
                     Button {
                         Task { await notificationManager.requestAuthorization() }
@@ -63,7 +68,7 @@ struct SettingsView: View {
                         Label("تفعيل صلاحية الإشعارات", systemImage: "bell.badge.fill")
                     }
 
-                    Text("إشعارات الصفقات والتنبيهات تظهر كـ Live Activity على الأجهزة الداعمة للجزيرة التفاعلية، وتستخدم إشعارات iOS خارج التطبيق عند توفر Push.")
+                    Text("الجزيرة التفاعلية تستخدم Live Activity. إشعارات الخارج تُرسل عبر APNs عند تفعيل مفاتيح المزود على خادم Mtbot.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
