@@ -159,6 +159,12 @@ struct SettingsView: View {
             .onChange(of: draft) { _, _ in
                 hasLocalEdits = true
             }
+            .onChange(of: notificationManager.outsideEnabled) { _, _ in
+                Task { await appModel.syncNotificationPreferences() }
+            }
+            .onChange(of: notificationManager.serverPreferences) { _, _ in
+                Task { await appModel.syncNotificationPreferences() }
+            }
             .sheet(isPresented: $showSymbolPicker) {
                 SymbolPickerView(
                     available: appModel.availableSymbols,
