@@ -82,7 +82,12 @@ final class AppModel: ObservableObject {
         isAppActive = false
         reconnectIndicatorTask?.cancel()
         reconnectIndicatorTask = nil
-        realtime.disconnect()
+
+        // Keep the WebSocket alive for as long as iOS allows background
+        // execution so the app can turn incoming trade events into local
+        // notifications. iOS may still suspend the process later.
+        fallbackTask?.cancel()
+        fallbackTask = nil
     }
 
     func sceneBecameActive() {
@@ -93,6 +98,7 @@ final class AppModel: ObservableObject {
 
         let previousUpdate = lastUpdated
         startRealtime(markReconnecting: false)
+        startFallbackRefresh()
 
         reconnectIndicatorTask?.cancel()
         reconnectIndicatorTask = Task { [weak self] in
