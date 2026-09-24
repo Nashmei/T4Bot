@@ -15,6 +15,22 @@ final class AppModel: ObservableObject {
     private var configuration: APIConfiguration?
     private var pollingTask: Task<Void, Never>?
 
+    func validateConnection(using configuration: APIConfiguration) async -> Bool {
+        isPerformingCommand = true
+        defer { isPerformingCommand = false }
+
+        do {
+            snapshot = try await client.snapshot(using: configuration)
+            lastUpdated = Date()
+            errorMessage = nil
+            return true
+        } catch {
+            snapshot = nil
+            errorMessage = localized(error)
+            return false
+        }
+    }
+
     func connect(using configuration: APIConfiguration) {
         self.configuration = configuration
         errorMessage = nil
