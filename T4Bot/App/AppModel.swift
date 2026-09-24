@@ -39,14 +39,23 @@ final class AppModel: ObservableObject {
         pollingTask?.cancel()
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
                 await self?.refresh()
-                try? await Task.sleep(for: .seconds(8))
             }
         }
 
-        realtime.connect(using: configuration) { [weak self] in
-            Task { [weak self] in
-                await self?.refresh()
+        realtime.connect(using: configuration) { [weak self] update in
+            guard let self else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                switch update {
+                case .snapshot(let liveSnapshot):
+                    self.snapshot = liveSnapshot
+                    self.lastUpdated = Date()
+                    self.errorMessage = nil
+                case .invalidation:
+                    await self.refresh()
+                }
             }
         }
     }
