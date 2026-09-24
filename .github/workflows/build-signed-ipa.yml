@@ -111,6 +111,21 @@ jobs:
           test -d "$APP_PATH"
           test -f "$APP_PATH/embedded.mobileprovision"
 
+          APP_PLIST="$APP_PATH/Info.plist"
+          if /usr/libexec/PlistBuddy -c "Print :UISupportedDevices" "$APP_PLIST" >/dev/null 2>&1; then
+            echo "UISupportedDevices is still present in signed app Info.plist"
+            exit 1
+          fi
+
+          LIVE_EXTENSION="$APP_PATH/PlugIns/T4BotLiveActivity.appex"
+          test -d "$LIVE_EXTENSION"
+          LIVE_PLIST="$LIVE_EXTENSION/Info.plist"
+          if /usr/libexec/PlistBuddy -c "Print :UISupportedDevices" "$LIVE_PLIST" >/dev/null 2>&1; then
+            echo "UISupportedDevices is still present in Live Activity extension"
+            exit 1
+          fi
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$LIVE_PLIST")" = "com.apple.widgetkit-extension"
+
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
           STAGE="$RUNNER_TEMP/T4BotSignedIPA"
