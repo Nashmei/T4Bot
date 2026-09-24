@@ -42,8 +42,28 @@ struct PositionSnapshot: Codable, Equatable, Identifiable, Sendable {
     let tp: Double
     let profit: Double
     let magic: Int
+    let imageId: String?
 
     var id: Int64 { ticket }
+}
+
+struct ClosedTrade: Codable, Equatable, Identifiable, Sendable {
+    let id: Int
+    let ticket: Int64
+    let symbol: String
+    let side: String
+    let strategy: String
+    let openedAt: Double
+    let closedAt: Double
+    let entry: Double
+    let exit: Double
+    let sl: Double
+    let tp: Double
+    let volume: Double
+    let pnl: Double
+    let result: String
+    let reason: String
+    let imageId: String?
 }
 
 struct TradingSettings: Codable, Equatable, Sendable {
