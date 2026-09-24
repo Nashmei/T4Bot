@@ -1,11 +1,6 @@
 import ActivityKit
 import Foundation
-import UIKit
 import UserNotifications
-
-extension Notification.Name {
-    static let t4botDeviceToken = Notification.Name("t4botDeviceToken")
-}
 
 @MainActor
 final class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
@@ -13,8 +8,6 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
 
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @Published private(set) var liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
-    @Published private(set) var deviceToken: String?
-    @Published private(set) var lastRegistrationError: String?
 
     @Published var inAppEnabled: Bool {
         didSet { UserDefaults.standard.set(inAppEnabled, forKey: "notifications.inApp") }
@@ -31,14 +24,9 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     @Published var profitProtection: Bool {
         didSet { UserDefaults.standard.set(profitProtection, forKey: "notifications.profitProtection") }
     }
-    @Published var engineAlerts: Bool {
-        didSet { UserDefaults.standard.set(engineAlerts, forKey: "notifications.engineAlerts") }
-    }
-    @Published var connectionAlerts: Bool {
-        didSet { UserDefaults.standard.set(connectionAlerts, forKey: "notifications.connectionAlerts") }
-    }
 
     private var activity: Activity<T4BotActivityAttributes>?
+    private var activityDismissTask: Task<Void, Never>?
 
     override init() {
         inAppEnabled = UserDefaults.standard.object(forKey: "notifications.inApp") as? Bool ?? true
@@ -46,49 +34,52 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         tradeOpened = UserDefaults.standard.object(forKey: "notifications.tradeOpened") as? Bool ?? true
         tradeClosed = UserDefaults.standard.object(forKey: "notifications.tradeClosed") as? Bool ?? true
         profitProtection = UserDefaults.standard.object(forKey: "notifications.profitProtection") as? Bool ?? true
-        engineAlerts = UserDefaults.standard.object(forKey: "notifications.engineAlerts") as? Bool ?? true
-        connectionAlerts = UserDefaults.standard.object(forKey: "notifications.connectionAlerts") as? Bool ?? true
         super.init()
 
         UNUserNotificationCenter.current().delegate = self
-        Task {
-            await refreshAuthorizationStatus()
-            liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+
+        Task { [weak self] in
+            guard let self else { return }
+            await self.refreshAuthorizationStatus()
+            self.liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+            await self.clearStaleLiveActivities()
         }
     }
 
-    var pushStatusText: String {
-        if let deviceToken, !deviceToken.isEmpty {
-            return "مسجل"
-        }
-        if lastRegistrationError != nil {
-            return "فشل التسجيل"
-        }
+    var authorizationStatusText: String {
         switch authorizationStatus {
-        case .authorized, .provisional, .ephemeral:
-            return "بانتظار APNs"
+        case .authorized:
+            return "مفعّلة"
+        case .provisional:
+            return "مفعّلة مؤقتاً"
+        case .ephemeral:
+            return "مفعّلة مؤقتاً"
         case .denied:
-            return "مرفوض"
+            return "مرفوضة"
         case .notDetermined:
-            return "غير مفعّل"
+            return "لم تُطلب بعد"
         @unknown default:
             return "غير معروف"
         }
     }
 
+    var authorizationGranted: Bool {
+        authorizationStatus == .authorized
+        || authorizationStatus == .provisional
+        || authorizationStatus == .ephemeral
+    }
+
     func requestAuthorization() async {
         do {
-            _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+            _ = try await UNUserNotificationCenter.current().requestAuthorization(
+                options: [.alert, .badge, .sound]
+            )
         } catch {
-            lastRegistrationError = error.localizedDescription
+            // The status row below remains the source of truth for the user.
         }
 
         await refreshAuthorizationStatus()
         liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
-
-        if authorizationStatus == .authorized || authorizationStatus == .provisional || authorizationStatus == .ephemeral {
-            UIApplication.shared.registerForRemoteNotifications()
-        }
     }
 
     func refreshAuthorizationStatus() async {
@@ -96,37 +87,18 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         authorizationStatus = settings.authorizationStatus
     }
 
-    func didRegisterForRemoteNotifications(token: String) {
-        deviceToken = token
-        lastRegistrationError = nil
-        NotificationCenter.default.post(name: .t4botDeviceToken, object: token)
-    }
-
-    func didFailToRegisterForRemoteNotifications(error: Error) {
-        deviceToken = nil
-        lastRegistrationError = error.localizedDescription
-    }
-
     func handle(event: RealtimeEvent, account: AccountSnapshot?) async {
-        guard event.type == "engine_notification" else { return }
+        guard let kind = TradeEventKind(rawValue: event.type) else { return }
+        guard categoryEnabled(kind) else { return }
 
-        let text = event.payload.string("text") ?? "تحديث من Mtbot"
-        let title = eventTitle(text)
-        let symbol = detectSymbol(text)
-        let pnl = event.payload.double("trade_result")
-        let category = category(for: text, pnl: pnl)
+        let alert = makeAlert(kind: kind, event: event)
 
-        guard categoryEnabled(category) else { return }
+        if outsideEnabled {
+            await scheduleLocalNotification(alert)
+        }
 
         if inAppEnabled {
-            _ = await presentLiveActivity(
-                title: title,
-                message: text,
-                symbol: symbol,
-                status: pnl == nil ? "live" : (pnl! >= 0 ? "profit" : "loss"),
-                pnl: pnl,
-                account: account
-            )
+            _ = await presentLiveActivity(alert: alert, account: account)
         }
     }
 
@@ -136,28 +108,29 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             return "Live Activities غير مفعّلة من إعدادات iOS."
         }
 
-        let result = await presentLiveActivity(
+        let alert = TradeAlert(
+            kind: .tradeOpened,
             title: "T4Bot • اختبار",
-            message: "الجزيرة التفاعلية تعمل وجاهزة لتنبيهات الصفقات.",
+            message: "الجزيرة التفاعلية تعمل وستختفي تلقائياً.",
             symbol: "T4",
-            status: "live",
             pnl: nil,
-            account: account
+            ticket: nil
         )
 
-        return result ? "تم إرسال اختبار للجزيرة التفاعلية." : "تعذر تشغيل Live Activity."
+        let result = await presentLiveActivity(alert: alert, account: account)
+        return result ? "تم تشغيل اختبار الجزيرة التفاعلية." : "تعذر تشغيل Live Activity."
     }
 
     func testLocalNotification() async -> String {
         await requestAuthorization()
 
-        guard authorizationStatus == .authorized || authorizationStatus == .provisional || authorizationStatus == .ephemeral else {
+        guard authorizationGranted else {
             return "صلاحية إشعارات iOS غير مفعّلة."
         }
 
         let content = UNMutableNotificationContent()
         content.title = "T4Bot • اختبار"
-        content.body = "إشعارات iOS تعمل على هذا الجهاز."
+        content.body = "الإشعار المحلي يعمل على هذا الجهاز."
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -168,139 +141,249 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
 
         do {
             try await UNUserNotificationCenter.current().add(request)
-            return "تم إرسال إشعار اختبار. سيظهر خلال ثانية."
+            return "تم إرسال إشعار محلي. سيظهر خلال ثانية."
         } catch {
             return "فشل اختبار الإشعار: \(error.localizedDescription)"
         }
     }
 
-    private func presentLiveActivity(
-        title: String,
-        message: String,
-        symbol: String,
-        status: String,
-        pnl: Double?,
-        account: AccountSnapshot?
-    ) async -> Bool {
-        liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
-        guard liveActivitiesEnabled else { return false }
+    func endLiveActivity() async {
+        activityDismissTask?.cancel()
+        activityDismissTask = nil
 
-        let state = T4BotActivityAttributes.ContentState(
-            title: title,
-            message: message,
-            symbol: symbol,
-            status: status,
-            pnl: pnl
-        )
-
-        let content = ActivityContent(
-            state: state,
-            staleDate: Date().addingTimeInterval(180),
-            relevanceScore: status == "profit" || status == "loss" ? 100 : 80
-        )
-
-        if let activity {
-            await activity.update(content)
-            return true
-        }
-
-        let attributes = T4BotActivityAttributes(
-            accountLabel: account.map { "\($0.login)" } ?? "Mtbot"
-        )
-
-        do {
-            activity = try Activity.request(
-                attributes: attributes,
-                content: content,
-                pushType: nil
-            )
-            return activity != nil
-        } catch {
-            return false
-        }
+        guard let active = activity else { return }
+        await end(active, dismissalPolicy: .immediate)
+        activity = nil
     }
 
-    func endLiveActivity() async {
-        guard let activity else { return }
+    private func clearStaleLiveActivities() async {
+        activityDismissTask?.cancel()
+        activityDismissTask = nil
 
-        let state = T4BotActivityAttributes.ContentState(
+        for active in Activity<T4BotActivityAttributes>.activities {
+            await end(active, dismissalPolicy: .immediate)
+        }
+
+        activity = nil
+    }
+
+    private func end(
+        _ active: Activity<T4BotActivityAttributes>,
+        dismissalPolicy: ActivityUIDismissalPolicy
+    ) async {
+        let idle = T4BotActivityAttributes.ContentState(
             title: "T4Bot",
-            message: "انتهى الاتصال المباشر.",
+            message: "",
             symbol: "",
             status: "idle",
             pnl: nil
         )
 
-        await activity.end(
-            ActivityContent(state: state, staleDate: nil),
-            dismissalPolicy: .after(Date().addingTimeInterval(8))
+        await active.end(
+            ActivityContent(state: idle, staleDate: nil),
+            dismissalPolicy: dismissalPolicy
         )
-        self.activity = nil
     }
 
-    var serverPreferences: [String: Bool] {
-        [
-            "trade_opened": tradeOpened,
-            "trade_closed": tradeClosed,
-            "profit_protection": profitProtection,
-            "engine_alerts": engineAlerts,
-            "connection_alerts": connectionAlerts
-        ]
+    private func scheduleLocalNotification(_ alert: TradeAlert) async {
+        await refreshAuthorizationStatus()
+        guard authorizationGranted else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = alert.title
+        content.body = alert.message
+        content.sound = .default
+
+        if let ticket = alert.ticket {
+            content.threadIdentifier = "trade-\(ticket)"
+        } else {
+            content.threadIdentifier = "t4bot-trades"
+        }
+
+        let request = UNNotificationRequest(
+            identifier: "t4bot.\(alert.kind.rawValue).\(alert.ticket.map(String.init) ?? UUID().uuidString).\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        try? await UNUserNotificationCenter.current().add(request)
     }
 
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner, .list, .sound])
+    private func presentLiveActivity(
+        alert: TradeAlert,
+        account: AccountSnapshot?
+    ) async -> Bool {
+        liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        guard liveActivitiesEnabled else { return false }
+
+        let status: String
+        switch alert.kind {
+        case .tradeOpened:
+            status = "live"
+        case .tradeClosed:
+            if let pnl = alert.pnl {
+                status = pnl >= 0 ? "profit" : "loss"
+            } else {
+                status = "closed"
+            }
+        case .profitProtection:
+            status = "protected"
+        }
+
+        let state = T4BotActivityAttributes.ContentState(
+            title: alert.title,
+            message: alert.message,
+            symbol: alert.symbol,
+            status: status,
+            pnl: alert.pnl
+        )
+
+        let content = ActivityContent(
+            state: state,
+            staleDate: Date().addingTimeInterval(15),
+            relevanceScore: alert.kind == .tradeClosed ? 100 : 90
+        )
+
+        if let active = activity {
+            await active.update(content)
+        } else {
+            let attributes = T4BotActivityAttributes(
+                accountLabel: account.map { "\($0.login)" } ?? "Mtbot"
+            )
+
+            do {
+                activity = try Activity.request(
+                    attributes: attributes,
+                    content: content,
+                    pushType: nil
+                )
+            } catch {
+                return false
+            }
+        }
+
+        scheduleLiveActivityDismissal()
+        return activity != nil
     }
 
-    private enum EventCategory {
-        case tradeOpened
-        case tradeClosed
-        case protection
-        case engine
-        case connection
-    }
+    private func scheduleLiveActivityDismissal() {
+        activityDismissTask?.cancel()
+        activityDismissTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(10))
+            } catch {
+                return
+            }
 
-    private func category(for text: String, pnl: Double?) -> EventCategory {
-        if pnl != nil || text.contains("النتيجة") || text.contains("TP") || text.contains("SL") {
-            return .tradeClosed
-        }
-        if text.contains("حماية") {
-            return .protection
-        }
-        if text.contains("اتصال") || text.contains("MT5") {
-            return .connection
-        }
-        if text.contains("تنفيذ") || text.contains("صفقة") {
-            return .tradeOpened
-        }
-        return .engine
-    }
-
-    private func categoryEnabled(_ category: EventCategory) -> Bool {
-        switch category {
-        case .tradeOpened: return tradeOpened
-        case .tradeClosed: return tradeClosed
-        case .protection: return profitProtection
-        case .engine: return engineAlerts
-        case .connection: return connectionAlerts
+            guard !Task.isCancelled, let self else { return }
+            await self.endLiveActivity()
         }
     }
 
-    private func eventTitle(_ text: String) -> String {
-        if text.contains("النتيجة") || text.contains("ربح") || text.contains("خسارة") {
-            return "نتيجة الصفقة"
+    private func makeAlert(kind: TradeEventKind, event: RealtimeEvent) -> TradeAlert {
+        let symbol = event.payload.string("symbol") ?? detectSymbol(event.payload.string("text") ?? "")
+        let side = localizedSide(event.payload.string("side"))
+        let ticket = event.payload.int64("trade_ticket")
+        let pnl = event.payload.double("trade_result")
+        let reason = event.payload.string("trade_result_reason")
+        let originalText = event.payload.string("text") ?? ""
+
+        switch kind {
+        case .tradeOpened:
+            var details = [symbol, side].filter { !$0.isEmpty }
+            if let ticket {
+                details.append("#\(ticket)")
+            }
+
+            return TradeAlert(
+                kind: kind,
+                title: "T4Bot • تم فتح صفقة",
+                message: details.isEmpty ? concise(originalText) : details.joined(separator: " • "),
+                symbol: symbol,
+                pnl: nil,
+                ticket: ticket
+            )
+
+        case .tradeClosed:
+            var details: [String] = []
+            if !symbol.isEmpty {
+                details.append(symbol)
+            }
+            if let pnl {
+                details.append(String(format: "%+.2f", pnl))
+            }
+            if let reason, !reason.isEmpty {
+                details.append(reason)
+            }
+            if let ticket {
+                details.append("#\(ticket)")
+            }
+
+            let title: String
+            if let pnl {
+                title = pnl > 0 ? "T4Bot • صفقة رابحة" : (pnl < 0 ? "T4Bot • صفقة خاسرة" : "T4Bot • إغلاق الصفقة")
+            } else {
+                title = "T4Bot • إغلاق الصفقة"
+            }
+
+            return TradeAlert(
+                kind: kind,
+                title: title,
+                message: details.isEmpty ? concise(originalText) : details.joined(separator: " • "),
+                symbol: symbol,
+                pnl: pnl,
+                ticket: ticket
+            )
+
+        case .profitProtection:
+            var details = [symbol].filter { !$0.isEmpty }
+            if let ticket {
+                details.append("#\(ticket)")
+            }
+
+            return TradeAlert(
+                kind: kind,
+                title: "T4Bot • حماية الربح",
+                message: details.isEmpty ? "تم تفعيل حماية الربح." : "تم تفعيل الحماية • " + details.joined(separator: " • "),
+                symbol: symbol,
+                pnl: nil,
+                ticket: ticket
+            )
         }
-        if text.contains("تنفيذ") || text.contains("OPEN") || text.contains("صفقة") {
-            return "T4Bot • صفقة"
+    }
+
+    private func categoryEnabled(_ kind: TradeEventKind) -> Bool {
+        switch kind {
+        case .tradeOpened:
+            return tradeOpened
+        case .tradeClosed:
+            return tradeClosed
+        case .profitProtection:
+            return profitProtection
         }
-        if text.contains("توقف") || text.contains("خطأ") || text.contains("🚨") {
-            return "تنبيه T4Bot"
+    }
+
+    private func localizedSide(_ side: String?) -> String {
+        switch side?.uppercased() {
+        case "BUY":
+            return "شراء"
+        case "SELL":
+            return "بيع"
+        default:
+            return ""
         }
-        return "T4Bot"
+    }
+
+    private func concise(_ text: String) -> String {
+        let oneLine = text
+            .replacingOccurrences(of: "\n", with: " • ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if oneLine.count <= 140 {
+            return oneLine.isEmpty ? "تحديث صفقة من Mtbot" : oneLine
+        }
+
+        return String(oneLine.prefix(137)) + "..."
     }
 
     private func detectSymbol(_ text: String) -> String {
@@ -317,27 +400,29 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             && value.unicodeScalars.allSatisfy { CharacterSet.uppercaseLetters.contains($0) }
         } ?? ""
     }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
+    }
 }
 
-final class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(
-        _ application: UIApplication,
-        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
-    ) {
-        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-        Task { @MainActor in
-            NotificationManager.shared.didRegisterForRemoteNotifications(token: token)
-        }
-    }
+private enum TradeEventKind: String {
+    case tradeOpened = "trade_opened"
+    case tradeClosed = "trade_closed"
+    case profitProtection = "profit_protection"
+}
 
-    func application(
-        _ application: UIApplication,
-        didFailToRegisterForRemoteNotificationsWithError error: Error
-    ) {
-        Task { @MainActor in
-            NotificationManager.shared.didFailToRegisterForRemoteNotifications(error: error)
-        }
-    }
+private struct TradeAlert {
+    let kind: TradeEventKind
+    let title: String
+    let message: String
+    let symbol: String
+    let pnl: Double?
+    let ticket: Int64?
 }
 
 private extension Dictionary where Key == String, Value == JSONValue {
@@ -352,6 +437,17 @@ private extension Dictionary where Key == String, Value == JSONValue {
             return value
         case .string(let value)?:
             return Double(value)
+        default:
+            return nil
+        }
+    }
+
+    func int64(_ key: String) -> Int64? {
+        switch self[key] {
+        case .number(let value)?:
+            return Int64(value)
+        case .string(let value)?:
+            return Int64(value)
         default:
             return nil
         }
