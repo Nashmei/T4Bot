@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PositionsView: View {
     @EnvironmentObject private var appModel: AppModel
@@ -7,19 +8,28 @@ struct PositionsView: View {
     enum Segment: String, CaseIterable, Identifiable {
         case open = "مفتوحة"
         case history = "السجل"
+
         var id: String { rawValue }
+    }
+
+    private var currency: String {
+        let value = appModel.snapshot?.account?.currency ?? "USD"
+        return value.isEmpty ? "USD" : value
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 Picker("الصفقات", selection: $selection) {
-                    ForEach(Segment.allCases) { segment in
-                        Text(segment.rawValue).tag(segment)
-                    }
+                    Text("مفتوحة \(appModel.snapshot?.positions.count ?? 0)")
+                        .tag(Segment.open)
+                    Text("السجل \(appModel.tradeHistory.count)")
+                        .tag(Segment.history)
                 }
                 .pickerStyle(.segmented)
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
 
                 Group {
                     switch selection {
@@ -33,7 +43,7 @@ struct PositionsView: View {
             .navigationTitle("الصفقات")
             .refreshable {
                 await appModel.refresh(silent: true)
-                await appModel.loadHistory()
+                await appModel.loadHistory(silent: true)
             }
         }
     }
@@ -44,20 +54,20 @@ struct PositionsView: View {
             List(positions) { position in
                 NavigationLink {
                     TradeDetailView(
-                        title: "(position.symbol) • (position.side)",
+                        title: "\(position.symbol) • \(position.side)",
                         ticket: position.ticket,
                         imageID: position.imageId,
                         rows: [
-                            ("Volume", position.volume.formatted(.number.precision(.fractionLength(2)))),
-                            ("Entry", position.priceOpen.formatted()),
-                            ("Current", position.priceCurrent.formatted()),
-                            ("SL", position.sl.formatted()),
-                            ("TP", position.tp.formatted()),
+                            ("الحجم", position.volume.formatted(.number.precision(.fractionLength(2)))),
+                            ("الدخول", position.priceOpen.formatted(.number.precision(.fractionLength(2...6)))),
+                            ("الحالي", position.priceCurrent.formatted(.number.precision(.fractionLength(2...6)))),
+                            ("SL", position.sl.formatted(.number.precision(.fractionLength(2...6)))),
+                            ("TP", position.tp.formatted(.number.precision(.fractionLength(2...6)))),
                             ("PnL", money(position.profit))
                         ]
                     )
                 } label: {
-                    PositionRow(position: position)
+                    PositionRow(position: position, currency: currency)
                 }
             }
             .listStyle(.plain)
@@ -65,7 +75,7 @@ struct PositionsView: View {
             ContentUnavailableView(
                 "لا توجد مراكز مفتوحة",
                 systemImage: "tray",
-                description: Text("الصفقات التي تُغلق تنتقل تلقائياً إلى السجل.")
+                description: Text("أي صفقة تُغلق ستبقى محفوظة في تبويب السجل مع نتيجتها.")
             )
         }
     }
@@ -79,38 +89,101 @@ struct PositionsView: View {
                 description: Text("ستظهر هنا نتائج الصفقات المغلقة مع سبب الإغلاق والربح أو الخسارة.")
             )
         } else {
-            List(appModel.tradeHistory) { trade in
-                NavigationLink {
-                    TradeDetailView(
-                        title: "(trade.symbol) • (trade.side)",
-                        ticket: trade.ticket,
-                        imageID: trade.imageId,
-                        rows: [
-                            ("الاستراتيجية", trade.strategy.isEmpty ? "—" : trade.strategy),
-                            ("Volume", trade.volume.formatted(.number.precision(.fractionLength(2)))),
-                            ("Entry", trade.entry.formatted()),
-                            ("Exit", trade.exit.formatted()),
-                            ("SL", trade.sl.formatted()),
-                            ("TP", trade.tp.formatted()),
-                            ("النتيجة", trade.result),
-                            ("PnL", money(trade.pnl))
-                        ]
-                    )
-                } label: {
-                    ClosedTradeRow(trade: trade)
+            List {
+                Section {
+                    HStack(spacing: 10) {
+                        HistoryMetric(
+                            title: "الصافي",
+                            value: money(appModel.tradeHistory.reduce(0) { $0 + $1.pnl }),
+                            positive: appModel.tradeHistory.reduce(0) { $0 + $1.pnl } >= 0
+                        )
+                        HistoryMetric(
+                            title: "ربح",
+                            value: "\(appModel.tradeHistory.filter { $0.pnl > 0 }.count)",
+                            positive: true
+                        )
+                        HistoryMetric(
+                            title: "خسارة",
+                            value: "\(appModel.tradeHistory.filter { $0.pnl < 0 }.count)",
+                            positive: false
+                        )
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+
+                Section("آخر الصفقات") {
+                    ForEach(appModel.tradeHistory) { trade in
+                        NavigationLink {
+                            TradeDetailView(
+                                title: "\(trade.symbol) • \(trade.side)",
+                                ticket: trade.ticket,
+                                imageID: trade.imageId,
+                                rows: [
+                                    ("الاستراتيجية", trade.strategy.isEmpty ? "—" : trade.strategy),
+                                    ("الحجم", trade.volume.formatted(.number.precision(.fractionLength(2)))),
+                                    ("الدخول", trade.entry.formatted(.number.precision(.fractionLength(2...6)))),
+                                    ("الخروج", trade.exit.formatted(.number.precision(.fractionLength(2...6)))),
+                                    ("SL", trade.sl.formatted(.number.precision(.fractionLength(2...6)))),
+                                    ("TP", trade.tp.formatted(.number.precision(.fractionLength(2...6)))),
+                                    ("النتيجة", displayResult(trade)),
+                                    ("PnL", money(trade.pnl))
+                                ]
+                            )
+                        } label: {
+                            ClosedTradeRow(trade: trade, currency: currency)
+                        }
+                    }
                 }
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
+        }
+    }
+
+    private func displayResult(_ trade: ClosedTrade) -> String {
+        if !trade.reason.isEmpty {
+            return trade.reason
+        }
+
+        switch trade.result {
+        case "TP": return "TP 🎯"
+        case "SL": return "SL 🛑"
+        case "POSITION_CLOSED": return "إغلاق 🏁"
+        default: return trade.result.isEmpty ? "—" : trade.result
         }
     }
 
     private func money(_ value: Double) -> String {
-        value.formatted(.currency(code: appModel.snapshot?.account?.currency ?? "USD").sign(strategy: .always()))
+        value.formatted(.currency(code: currency).sign(strategy: .always()))
+    }
+}
+
+private struct HistoryMetric: View {
+    let title: String
+    let value: String
+    let positive: Bool
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Text(value)
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(positive ? .green : .red)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
 private struct PositionRow: View {
     let position: PositionSnapshot
+    let currency: String
 
     var body: some View {
         HStack(spacing: 12) {
@@ -119,20 +192,23 @@ private struct PositionRow: View {
                 .foregroundStyle(position.side == "BUY" ? .green : .red)
 
             VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(position.symbol).font(.headline)
+                HStack(spacing: 7) {
+                    Text(position.symbol)
+                        .font(.headline)
+
                     Text(position.side)
                         .font(.caption.bold())
                         .foregroundStyle(position.side == "BUY" ? .green : .red)
                 }
-                Text("Ticket (position.ticket) • (position.volume.formatted(.number.precision(.fractionLength(2)))) lot")
+
+                Text("Ticket \(position.ticket) • \(position.volume.formatted(.number.precision(.fractionLength(2)))) lot")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            Text(position.profit, format: .currency(code: "USD").sign(strategy: .always()))
+            Text(position.profit, format: .currency(code: currency).sign(strategy: .always()))
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(position.profit >= 0 ? .green : .red)
         }
@@ -142,6 +218,7 @@ private struct PositionRow: View {
 
 private struct ClosedTradeRow: View {
     let trade: ClosedTrade
+    let currency: String
 
     var body: some View {
         HStack(spacing: 12) {
@@ -150,23 +227,28 @@ private struct ClosedTradeRow: View {
                 .foregroundStyle(trade.pnl >= 0 ? .green : .red)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(trade.symbol).font(.headline)
+                HStack(spacing: 7) {
+                    Text(trade.symbol)
+                        .font(.headline)
+
                     Text(trade.side)
                         .font(.caption.bold())
                         .foregroundStyle(trade.side == "BUY" ? .green : .red)
                 }
-                Text(trade.strategy.isEmpty ? trade.result : "(trade.strategy) • (trade.result)")
+
+                Text(trade.strategy.isEmpty ? trade.result : "\(trade.strategy) • \(trade.result)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(trade.pnl, format: .currency(code: "USD").sign(strategy: .always()))
+                Text(trade.pnl, format: .currency(code: currency).sign(strategy: .always()))
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(trade.pnl >= 0 ? .green : .red)
+
                 Text(Date(timeIntervalSince1970: trade.closedAt), style: .time)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -185,21 +267,31 @@ private struct TradeDetailView: View {
     let rows: [(String, String)]
 
     @State private var imageData: Data?
+    @State private var imageLoadFinished = false
 
     var body: some View {
         List {
             if let imageData, let image = UIImage(data: imageData) {
-                Section {
+                Section("صورة الصفقة") {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .listRowInsets(EdgeInsets())
                 }
+            } else if imageID != nil && !imageLoadFinished {
+                Section("صورة الصفقة") {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                }
             }
 
             Section("تفاصيل الصفقة") {
                 LabeledContent("Ticket", value: String(ticket))
+
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     LabeledContent(row.0, value: row.1)
                 }
@@ -208,6 +300,7 @@ private struct TradeDetailView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: imageID) {
+            defer { imageLoadFinished = true }
             guard let imageID else { return }
             imageData = await appModel.tradeImage(mediaID: imageID)
         }
