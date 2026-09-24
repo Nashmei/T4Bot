@@ -43,15 +43,6 @@ targets:
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: T4Bot/T4Bot.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    postBuildScripts:
-      - name: Strip UISupportedDevices
-        script: |
-          set -e
-          PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
-          if [ -f "$PLIST" ]; then
-            /usr/libexec/PlistBuddy -c "Delete :UISupportedDevices" "$PLIST" >/dev/null 2>&1 || true
-            /usr/bin/plutil -lint "$PLIST"
-          fi
     scheme:
       testTargets:
         - T4BotTests
@@ -72,15 +63,6 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: T4BotLiveActivity/T4BotLiveActivity.entitlements
-    postBuildScripts:
-      - name: Strip UISupportedDevices
-        script: |
-          set -e
-          PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
-          if [ -f "$PLIST" ]; then
-            /usr/libexec/PlistBuddy -c "Delete :UISupportedDevices" "$PLIST" >/dev/null 2>&1 || true
-            /usr/bin/plutil -lint "$PLIST"
-          fi
 
   T4BotTests:
     type: bundle.unit-test
