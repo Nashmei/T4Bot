@@ -61,10 +61,12 @@ private struct AnalysisRow: View {
                     Label(item.side ?? "—", systemImage: item.side == "BUY" ? "arrow.up.right" : "arrow.down.right")
                     Spacer()
                     if let confidence = item.confidence {
-                        Text(confidence, format: .percent.precision(.fractionLength(0)))
+                        Text("\(confidence.formatted(.number.precision(.fractionLength(0))))%")
+                            .monospacedDigit()
                     }
                 }
                 .font(.subheadline.weight(.medium))
+                .foregroundStyle(item.side == "BUY" ? .green : .red)
 
                 if let strategy = item.strategy {
                     Text(strategy)
