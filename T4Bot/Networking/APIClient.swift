@@ -55,6 +55,38 @@ actor APIClient {
         try await request(path: "/v1/symbols", method: "GET", configuration: configuration)
     }
 
+    func tradeHistory(limit: Int = 100, using configuration: APIConfiguration) async throws -> [ClosedTrade] {
+        try await request(path: "/v1/trades/history?limit=\(limit)", method: "GET", configuration: configuration)
+    }
+
+    func tradeImage(mediaID: String, using configuration: APIConfiguration) async throws -> Data {
+        var request = URLRequest(url: configuration.url(path: "/v1/media/\(mediaID)"))
+        request.httpMethod = "GET"
+        request.timeoutInterval = 12
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.server(statusCode: http.statusCode, message: HTTPURLResponse.localizedString(forStatusCode: http.statusCode))
+        }
+        return data
+    }
+
+    func registerNotifications(token: String, enabled: Bool, preferences: [String: Bool], using configuration: APIConfiguration) async throws -> CommandResponse {
+        struct Payload: Encodable {
+            let token: String
+            let enabled: Bool
+            let preferences: [String: Bool]
+        }
+        return try await request(
+            path: "/v1/notifications/register",
+            method: "POST",
+            body: Payload(token: token, enabled: enabled, preferences: preferences),
+            configuration: configuration
+        )
+    }
+
     func login(server: String, login: Int64, password: String, using configuration: APIConfiguration) async throws -> LoginResponse {
         try await request(
             path: "/v1/account/login",
