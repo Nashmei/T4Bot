@@ -1,0 +1,65 @@
+import SwiftUI
+
+struct ConnectionView: View {
+    @EnvironmentObject private var connectionStore: ConnectionStore
+    @EnvironmentObject private var appModel: AppModel
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.largeTitle)
+                            .foregroundStyle(.tint)
+
+                        Text("اتصال T4Bot")
+                            .font(.title2.bold())
+
+                        Text("يتصل التطبيق بمحرك Mtbot عبر HTTPS فقط. لا تحفظ بيانات MT5 داخل التطبيق.")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                Section("الخادم") {
+                    TextField("https://bot.example.com", text: $connectionStore.baseURLString)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+
+                    SecureField("رمز CONTROL_API_TOKEN", text: $connectionStore.token)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+
+                if let validationMessage = connectionStore.validationMessage {
+                    Section {
+                        Text(validationMessage)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button {
+                        guard connectionStore.save(),
+                              let configuration = connectionStore.configuration
+                        else { return }
+
+                        appModel.connect(using: configuration)
+                    } label: {
+                        Label("اتصال آمن", systemImage: "network.badge.shield.half.filled")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                Section {
+                    Text("رمز الوصول يُحفظ في iOS Keychain. التطبيق يرفض HTTP غير المشفر.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("T4Bot")
+        }
+    }
+}
