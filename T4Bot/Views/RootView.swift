@@ -12,6 +12,33 @@ struct RootView: View {
                 ConnectionView()
             }
         }
+        .overlay(alignment: .top) {
+            if let message = appModel.operationMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(message)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .allowsHitTesting(false)
+            }
+        }
+        .animation(.snappy, value: appModel.operationMessage)
+        .task(id: appModel.operationMessage) {
+            guard let message = appModel.operationMessage else { return }
+            try? await Task.sleep(for: .seconds(3))
+            if appModel.operationMessage == message {
+                appModel.operationMessage = nil
+            }
+        }
         .alert(
             "T4Bot",
             isPresented: Binding(
