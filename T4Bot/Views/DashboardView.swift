@@ -31,7 +31,8 @@ struct DashboardView: View {
                                 MetricCard(
                                     title: "الربح العائم",
                                     value: money(account.profit, currency: account.currency),
-                                    systemImage: "waveform.path.ecg"
+                                    systemImage: "waveform.path.ecg",
+                                    tint: account.profit >= 0 ? .green : .red
                                 )
                                 MetricCard(
                                     title: "المراكز",
@@ -100,6 +101,7 @@ struct DashboardView: View {
                         title: snapshot.engine.running ? "المحرك يعمل" : "المحرك متوقف",
                         isPositive: snapshot.engine.running
                     )
+                    connectionPill
                     Spacer()
                     if let account = snapshot.account {
                         Text(account.isDemo ? "DEMO" : "غير تجريبي")
@@ -192,6 +194,20 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private var connectionPill: some View {
+        let state = appModel.connectionState
+        return HStack(spacing: 5) {
+            Circle()
+                .fill(state == .live ? Color.green : state == .reconnecting ? Color.orange : Color.red)
+                .frame(width: 7, height: 7)
+            Text(state == .live ? "LIVE" : state == .reconnecting ? "إعادة اتصال" : "Offline")
+                .font(.caption2.weight(.bold))
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(.thinMaterial, in: Capsule())
     }
 
     private func readinessRow(_ title: String, _ value: Bool) -> some View {
