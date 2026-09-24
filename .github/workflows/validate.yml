@@ -1,0 +1,33 @@
+name: Validate iOS
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "bootstrap/**"
+      - "feature/**"
+
+concurrency:
+  group: validate-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator
+        run: |
+          set -euo pipefail
+          xcodebuild             -project T4Bot.xcodeproj             -scheme T4Bot             -configuration Debug             -sdk iphonesimulator             -destination 'generic/platform=iOS Simulator'             CODE_SIGNING_ALLOWED=NO             build
