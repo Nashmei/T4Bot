@@ -1,31 +1,51 @@
 import Foundation
 
+enum RealtimeUpdate: Sendable {
+    case snapshot(ServerSnapshot)
+    case invalidation
+}
+
 final class RealtimeClient {
     private var socketTask: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
 
     func connect(
         using configuration: APIConfiguration,
-        onEvent: @escaping @Sendable () -> Void
+        onUpdate: @escaping @Sendable (RealtimeUpdate) -> Void
     ) {
         disconnect()
 
-        guard let request = configuration.webSocketRequest(path: "/v1/ws") else {
-            return
-        }
-
-        let socket = URLSession.shared.webSocketTask(with: request)
-        socketTask = socket
-        socket.resume()
-
         receiveTask = Task { [weak self] in
             guard let self else { return }
+
             while !Task.isCancelled {
+                guard let request = configuration.webSocketRequest(path: "/v1/ws") else {
+                    return
+                }
+
+                let socket = URLSession.shared.webSocketTask(with: request)
+                socketTask = socket
+                socket.resume()
+
                 do {
-                    _ = try await socket.receive()
-                    onEvent()
+                    while !Task.isCancelled {
+                        let message = try await socket.receive()
+                        guard let data = Self.data(from: message) else {
+                            onUpdate(.invalidation)
+                            continue
+                        }
+
+                        if let snapshot = Self.snapshot(from: data) {
+                            onUpdate(.snapshot(snapshot))
+                        } else {
+                            onUpdate(.invalidation)
+                        }
+                    }
                 } catch {
-                    break
+                    socket.cancel(with: .goingAway, reason: nil)
+                    socketTask = nil
+                    if Task.isCancelled { return }
+                    try? await Task.sleep(for: .milliseconds(350))
                 }
             }
         }
@@ -40,5 +60,32 @@ final class RealtimeClient {
 
     deinit {
         disconnect()
+    }
+
+    private static func data(from message: URLSessionWebSocketTask.Message) -> Data? {
+        switch message {
+        case .data(let data):
+            return data
+        case .string(let string):
+            return string.data(using: .utf8)
+        @unknown default:
+            return nil
+        }
+    }
+
+    private static func snapshot(from data: Data) -> ServerSnapshot? {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            object["type"] as? String == "snapshot",
+            let payload = object["payload"],
+            JSONSerialization.isValidJSONObject(payload),
+            let payloadData = try? JSONSerialization.data(withJSONObject: payload)
+        else {
+            return nil
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try? decoder.decode(ServerSnapshot.self, from: payloadData)
     }
 }
