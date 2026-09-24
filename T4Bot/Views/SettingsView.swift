@@ -75,7 +75,7 @@ struct SettingsView: View {
                     LabeledContent("Push") {
                         Text(notificationManager.pushStatusText)
                             .font(.caption)
-                            .foregroundStyle(notificationManager.deviceToken == nil ? .secondary : .green)
+                            .foregroundStyle(notificationManager.deviceToken == nil ? Color.secondary : Color.green)
                     }
 
                     if let status = appModel.notificationStatus {
