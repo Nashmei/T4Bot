@@ -4,7 +4,7 @@ import Foundation
 final class ConnectionStore: ObservableObject {
     private enum Keys {
         static let baseURL = "t4bot.api.baseURL"
-        static let tokenAccount = "control-api-token"
+        static let baseURLAccount = "control-api-base-url"\n        static let tokenAccount = "control-api-token"
     }
 
     @Published var baseURLString: String
@@ -13,7 +13,7 @@ final class ConnectionStore: ObservableObject {
     @Published private(set) var isConfigured: Bool
 
     init() {
-        let storedURL = UserDefaults.standard.string(forKey: Keys.baseURL) ?? ""
+        let keychainURL = KeychainStore.read(account: Keys.baseURLAccount) ?? ""\n        let storedURL = keychainURL.isEmpty ? (UserDefaults.standard.string(forKey: Keys.baseURL) ?? "") : keychainURL
         let storedToken = KeychainStore.read(account: Keys.tokenAccount) ?? ""
         baseURLString = storedURL
         token = storedToken
@@ -59,7 +59,7 @@ final class ConnectionStore: ObservableObject {
 
     func clear() {
         UserDefaults.standard.removeObject(forKey: Keys.baseURL)
-        KeychainStore.delete(account: Keys.tokenAccount)
+        KeychainStore.delete(account: Keys.baseURLAccount)\n        KeychainStore.delete(account: Keys.tokenAccount)
         baseURLString = ""
         token = ""
         validationMessage = nil
