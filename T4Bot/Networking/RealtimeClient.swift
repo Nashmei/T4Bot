@@ -1,7 +1,13 @@
 import Foundation
 
+struct RealtimeEvent: Sendable {
+    let type: String
+    let payload: [String: JSONValue]
+}
+
 enum RealtimeUpdate: Sendable {
     case snapshot(ServerSnapshot)
+    case event(RealtimeEvent)
     case invalidation
 }
 
@@ -37,6 +43,8 @@ final class RealtimeClient {
 
                         if let snapshot = Self.snapshot(from: data) {
                             onUpdate(.snapshot(snapshot))
+                        } else if let event = Self.event(from: data) {
+                            onUpdate(.event(event))
                         } else {
                             onUpdate(.invalidation)
                         }
@@ -45,7 +53,7 @@ final class RealtimeClient {
                     socket.cancel(with: .goingAway, reason: nil)
                     socketTask = nil
                     if Task.isCancelled { return }
-                    try? await Task.sleep(for: .milliseconds(350))
+                    try? await Task.sleep(for: .milliseconds(200))
                 }
             }
         }
@@ -64,12 +72,9 @@ final class RealtimeClient {
 
     private static func data(from message: URLSessionWebSocketTask.Message) -> Data? {
         switch message {
-        case .data(let data):
-            return data
-        case .string(let string):
-            return string.data(using: .utf8)
-        @unknown default:
-            return nil
+        case .data(let data): return data
+        case .string(let string): return string.data(using: .utf8)
+        @unknown default: return nil
         }
     }
 
@@ -80,12 +85,24 @@ final class RealtimeClient {
             let payload = object["payload"],
             JSONSerialization.isValidJSONObject(payload),
             let payloadData = try? JSONSerialization.data(withJSONObject: payload)
-        else {
-            return nil
-        }
+        else { return nil }
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try? decoder.decode(ServerSnapshot.self, from: payloadData)
+    }
+
+    private static func event(from data: Data) -> RealtimeEvent? {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let type = object["type"] as? String,
+            type != "snapshot",
+            let payload = object["payload"] as? [String: Any],
+            JSONSerialization.isValidJSONObject(payload),
+            let payloadData = try? JSONSerialization.data(withJSONObject: payload),
+            let values = try? JSONDecoder().decode([String: JSONValue].self, from: payloadData)
+        else { return nil }
+
+        return RealtimeEvent(type: type, payload: values)
     }
 }
