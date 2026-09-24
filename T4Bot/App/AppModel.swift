@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 
 @MainActor
@@ -12,7 +11,6 @@ final class AppModel: ObservableObject {
     @Published private(set) var snapshot: ServerSnapshot?
     @Published private(set) var tradeHistory: [ClosedTrade] = []
     @Published private(set) var availableSymbols: [String] = []
-    @Published private(set) var notificationStatus: NotificationStatusResponse?
     @Published private(set) var connectionState: ConnectionState = .offline
     @Published private(set) var isRefreshing = false
     @Published private(set) var isPerformingCommand = false
@@ -28,23 +26,6 @@ final class AppModel: ObservableObject {
     private var fallbackTask: Task<Void, Never>?
     private var reconnectIndicatorTask: Task<Void, Never>?
     private var isAppActive = true
-    private var lastDeviceToken: String?
-
-    init() {
-        NotificationCenter.default.addObserver(
-            forName: .t4botDeviceToken,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            guard let token = note.object as? String else { return }
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.lastDeviceToken = token
-                await self.registerPushTokenIfPossible()
-                await self.refreshNotificationStatus()
-            }
-        }
-    }
 
     func validateConnection(using configuration: APIConfiguration) async -> Bool {
         isPerformingCommand = true
@@ -75,13 +56,6 @@ final class AppModel: ObservableObject {
         Task {
             await refreshSupportingData(silent: true)
             await notifications.requestAuthorization()
-
-            if let token = notifications.deviceToken {
-                lastDeviceToken = token
-            }
-
-            await registerPushTokenIfPossible()
-            await refreshNotificationStatus()
         }
     }
 
@@ -96,7 +70,6 @@ final class AppModel: ObservableObject {
         snapshot = nil
         tradeHistory = []
         availableSymbols = []
-        notificationStatus = nil
         lastUpdated = nil
         errorMessage = nil
         operationMessage = nil
@@ -134,7 +107,6 @@ final class AppModel: ObservableObject {
         Task {
             await refresh(silent: true)
             await refreshSupportingData(silent: true)
-            await refreshNotificationStatus()
         }
     }
 
@@ -191,45 +163,6 @@ final class AppModel: ObservableObject {
             if !silent && isAppActive {
                 errorMessage = localized(error)
             }
-        }
-    }
-
-    func refreshNotificationStatus() async {
-        guard let configuration else { return }
-
-        do {
-            notificationStatus = try await client.notificationStatus(using: configuration)
-        } catch {
-            notificationStatus = nil
-        }
-    }
-
-    func syncNotificationPreferences() async {
-        if let token = notifications.deviceToken {
-            lastDeviceToken = token
-        }
-        await registerPushTokenIfPossible()
-        await refreshNotificationStatus()
-    }
-
-    func testServerPush() async {
-        guard let configuration else { return }
-
-        isPerformingCommand = true
-        defer { isPerformingCommand = false }
-
-        if let token = notifications.deviceToken {
-            lastDeviceToken = token
-        }
-
-        await registerPushTokenIfPossible()
-
-        do {
-            let response = try await client.testServerPush(using: configuration)
-            operationMessage = response.message
-            await refreshNotificationStatus()
-        } catch {
-            errorMessage = localized(error)
         }
     }
 
@@ -339,7 +272,7 @@ final class AppModel: ObservableObject {
                         account: self.snapshot?.account
                     )
 
-                    if event.type == "engine_notification" {
+                    if event.type == "trade_closed" {
                         await self.loadHistory(silent: true)
                     }
 
@@ -366,23 +299,6 @@ final class AppModel: ObservableObject {
                 await self.refresh(silent: true)
             }
         }
-    }
-
-    private func registerPushTokenIfPossible() async {
-        guard
-            let configuration,
-            let token = lastDeviceToken,
-            !token.isEmpty
-        else {
-            return
-        }
-
-        _ = try? await client.registerNotifications(
-            token: token,
-            enabled: notifications.outsideEnabled,
-            preferences: notifications.serverPreferences,
-            using: configuration
-        )
     }
 
     private func performCommand(
