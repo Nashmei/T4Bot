@@ -93,4 +93,12 @@ Read-only recent audit stream.
 
 `GET wss://<host>/v1/ws` using the same Authorization header.
 
-Events are hints. After an event, refresh `/v1/snapshot`.
+Snapshot events remain authoritative state updates. Mtbot also emits explicit trade lifecycle events:
+
+- `trade_opened`
+- `trade_closed`
+- `profit_protection`
+
+These events carry structured fields such as `symbol`, `side`, `trade_ticket`, `trade_result`, and `trade_result_reason` when available.
+
+T4Bot does **not** require APNs for these alerts. While the process is able to receive the WebSocket event, the iOS app creates its own local notification and transient Live Activity. iOS may suspend the app in the background, so APNs would still be required for guaranteed delivery while the process is suspended or terminated.
