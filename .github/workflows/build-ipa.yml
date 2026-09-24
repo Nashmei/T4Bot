@@ -2,9 +2,6 @@ name: Build IPA
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "bootstrap/native-ios-control-surface"
 
 concurrency:
   group: build-ipa-${{ github.ref }}

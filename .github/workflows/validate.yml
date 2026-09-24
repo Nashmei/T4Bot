@@ -2,9 +2,6 @@ name: Validate iOS
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "bootstrap/native-ios-control-surface"
 
 concurrency:
   group: validate-ios-${{ github.ref }}
