@@ -42,15 +42,25 @@ struct ConnectionView: View {
 
                 Section {
                     Button {
-                        guard connectionStore.save(),
-                              let configuration = connectionStore.configuration
-                        else { return }
+                        guard let configuration = connectionStore.candidateConfiguration else {
+                            connectionStore.validationMessage = "استخدم رابط HTTPS صالحاً وأدخل رمز الوصول."
+                            return
+                        }
 
-                        appModel.connect(using: configuration)
+                        Task {
+                            guard await appModel.validateConnection(using: configuration) else {
+                                connectionStore.validationMessage = "تعذر التحقق من الاتصال أو رمز الوصول."
+                                return
+                            }
+
+                            guard connectionStore.save() else { return }
+                            appModel.connect(using: configuration)
+                        }
                     } label: {
                         Label("اتصال آمن", systemImage: "network.badge.shield.half.filled")
                             .frame(maxWidth: .infinity)
                     }
+                    .disabled(appModel.isPerformingCommand)
                 }
 
                 Section {
