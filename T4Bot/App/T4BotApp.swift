@@ -2,7 +2,6 @@ import SwiftUI
 
 @main
 struct T4BotApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var connectionStore = ConnectionStore()
     @StateObject private var appModel = AppModel()
