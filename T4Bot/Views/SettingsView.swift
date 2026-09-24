@@ -2,20 +2,43 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var notificationManager: NotificationManager
+
     @State private var draft = TradingSettings.defaults
-    @State private var symbolsText = "EURUSD"
+    @State private var selectedSymbols: Set<String> = []
     @State private var loadedAccount: Int64?
+    @State private var hasLocalEdits = false
+    @State private var showSymbolPicker = false
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("الأزواج") {
-                    TextField("EURUSD GBPUSD XAUUSD", text: $symbolsText)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                    Text("افصل الرموز بمسافة. الخادم يتحقق من وجودها في MT5.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Button {
+                        showSymbolPicker = true
+                        Task { await appModel.loadSymbols() }
+                    } label: {
+                        HStack {
+                            Label("اختيار الأزواج من MT5", systemImage: "list.bullet.rectangle")
+                            Spacer()
+                            Text("(selectedSymbols.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if !selectedSymbols.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(selectedSymbols.sorted(), id: \.self) { symbol in
+                                    Text(symbol)
+                                        .font(.caption.bold())
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(.blue.opacity(0.12), in: Capsule())
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Section("المخاطرة") {
@@ -25,62 +48,76 @@ struct SettingsView: View {
                     numericRow("الحماية %", value: $draft.protectionPct)
                     numericRow("مدة الصفقة بالدقائق", value: $draft.maxTradeMinutes)
 
-                    Stepper("حد المراكز: \(draft.maxPositions)", value: $draft.maxPositions, in: 1...10)
-                    Stepper("حد الخسائر: \(draft.maxConsecutiveLosses)", value: $draft.maxConsecutiveLosses, in: 0...20)
+                    Stepper("حد المراكز: (draft.maxPositions)", value: $draft.maxPositions, in: 1...10)
+                    Stepper("حد الخسائر: (draft.maxConsecutiveLosses)", value: $draft.maxConsecutiveLosses, in: 0...20)
                     numericRow("حد Equity اليومي %", value: $draft.dailyLossLimitPct)
+                }
+
+                Section("الإشعارات") {
+                    Toggle("الجزيرة التفاعلية داخل التطبيق", isOn: $notificationManager.inAppEnabled)
+                    Toggle("إشعارات خارج التطبيق", isOn: $notificationManager.outsideEnabled)
+
+                    Button {
+                        Task { await notificationManager.requestAuthorization() }
+                    } label: {
+                        Label("تفعيل صلاحية الإشعارات", systemImage: "bell.badge.fill")
+                    }
+
+                    Text("إشعارات الصفقات والتنبيهات تظهر كـ Live Activity على الأجهزة الداعمة للجزيرة التفاعلية، وتستخدم إشعارات iOS خارج التطبيق عند توفر Push.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section {
                     Button {
                         Task {
+                            draft.symbols = selectedSymbols.sorted()
                             await appModel.update(settings: draft)
-                            let symbols = normalizedSymbols
-                            if !symbols.isEmpty {
-                                await appModel.update(symbols: symbols)
-                            }
+                            await appModel.update(symbols: draft.symbols)
+                            hasLocalEdits = false
                         }
                     } label: {
                         Label("حفظ على Mtbot", systemImage: "checkmark.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
-                    .disabled(appModel.isPerformingCommand || normalizedSymbols.isEmpty)
+                    .disabled(appModel.isPerformingCommand || selectedSymbols.isEmpty)
                 }
 
                 Section {
-                    Text("القيم النهائية يحقق منها Mtbot مرة أخرى. التطبيق لا يغيّر استراتيجية التداول أو منطق إدارة المخاطر.")
+                    Text("T4Bot يعرض الرموز الفعلية التي يوفرها MT5 على الخادم. لا توجد قائمة أزواج ثابتة داخل التطبيق.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("الإعدادات")
-            .onAppear(perform: loadSnapshot)
+            .onAppear {
+                loadSnapshot(force: true)
+                Task { await appModel.loadSymbols() }
+            }
             .onChange(of: appModel.snapshot) { _, _ in
-                loadSnapshot()
+                loadSnapshot(force: false)
+            }
+            .onChange(of: draft) { _, _ in hasLocalEdits = true }
+            .sheet(isPresented: $showSymbolPicker) {
+                SymbolPickerView(
+                    available: appModel.availableSymbols,
+                    selection: $selectedSymbols
+                )
             }
             .loadingOverlay(appModel.isPerformingCommand)
         }
     }
 
-    private var normalizedSymbols: [String] {
-        symbolsText
-            .uppercased()
-            .split(whereSeparator: { $0.isWhitespace || $0 == "," })
-            .map(String.init)
-            .reduce(into: [String]()) { result, symbol in
-                if !result.contains(symbol) {
-                    result.append(symbol)
-                }
-            }
-    }
-
-    private func loadSnapshot() {
+    private func loadSnapshot(force: Bool) {
         guard let snapshot = appModel.snapshot else { return }
         let account = snapshot.account?.login
-        guard loadedAccount != account || draft == TradingSettings.defaults else { return }
+
+        guard force || loadedAccount != account || !hasLocalEdits else { return }
 
         draft = snapshot.settings
-        symbolsText = snapshot.settings.symbols.joined(separator: " ")
+        selectedSymbols = Set(snapshot.settings.symbols)
         loadedAccount = account
+        hasLocalEdits = false
     }
 
     @ViewBuilder
@@ -90,6 +127,65 @@ struct SettingsView: View {
                 .multilineTextAlignment(.trailing)
                 .keyboardType(.decimalPad)
                 .frame(maxWidth: 110)
+        }
+    }
+}
+
+private struct SymbolPickerView: View {
+    let available: [String]
+    @Binding var selection: Set<String>
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+
+    private var filtered: [String] {
+        guard !query.isEmpty else { return available }
+        return available.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    HStack {
+                        Button("تحديد الكل") {
+                            selection = Set(available)
+                        }
+                        Spacer()
+                        Button("إلغاء الكل", role: .destructive) {
+                            selection.removeAll()
+                        }
+                    }
+                }
+
+                ForEach(filtered, id: \.self) { symbol in
+                    Button {
+                        if selection.contains(symbol) {
+                            selection.remove(symbol)
+                        } else {
+                            selection.insert(symbol)
+                        }
+                    } label: {
+                        HStack {
+                            Text(symbol)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if selection.contains(symbol) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                }
+            }
+            .searchable(text: $query, prompt: "ابحث في رموز MT5")
+            .navigationTitle("أزواج MT5")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("تم") { dismiss() }
+                }
+            }
         }
     }
 }
