@@ -18,12 +18,32 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     @Published var outsideEnabled: Bool {
         didSet { UserDefaults.standard.set(outsideEnabled, forKey: "notifications.outside") }
     }
+    @Published var tradeOpened: Bool {
+        didSet { UserDefaults.standard.set(tradeOpened, forKey: "notifications.tradeOpened") }
+    }
+    @Published var tradeClosed: Bool {
+        didSet { UserDefaults.standard.set(tradeClosed, forKey: "notifications.tradeClosed") }
+    }
+    @Published var profitProtection: Bool {
+        didSet { UserDefaults.standard.set(profitProtection, forKey: "notifications.profitProtection") }
+    }
+    @Published var engineAlerts: Bool {
+        didSet { UserDefaults.standard.set(engineAlerts, forKey: "notifications.engineAlerts") }
+    }
+    @Published var connectionAlerts: Bool {
+        didSet { UserDefaults.standard.set(connectionAlerts, forKey: "notifications.connectionAlerts") }
+    }
 
     private var activity: Activity<T4BotActivityAttributes>?
 
     override init() {
         inAppEnabled = UserDefaults.standard.object(forKey: "notifications.inApp") as? Bool ?? true
         outsideEnabled = UserDefaults.standard.object(forKey: "notifications.outside") as? Bool ?? true
+        tradeOpened = UserDefaults.standard.object(forKey: "notifications.tradeOpened") as? Bool ?? true
+        tradeClosed = UserDefaults.standard.object(forKey: "notifications.tradeClosed") as? Bool ?? true
+        profitProtection = UserDefaults.standard.object(forKey: "notifications.profitProtection") as? Bool ?? true
+        engineAlerts = UserDefaults.standard.object(forKey: "notifications.engineAlerts") as? Bool ?? true
+        connectionAlerts = UserDefaults.standard.object(forKey: "notifications.connectionAlerts") as? Bool ?? true
         super.init()
         UNUserNotificationCenter.current().delegate = self
         Task { await refreshAuthorizationStatus() }
@@ -53,6 +73,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         let title = eventTitle(text)
         let symbol = detectSymbol(text)
         let pnl = event.payload.double("trade_result")
+        let category = category(for: text, pnl: pnl)
+        guard categoryEnabled(category) else { return }
 
         if inAppEnabled {
             await updateLiveActivity(
@@ -116,6 +138,38 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         )
         await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .immediate)
         self.activity = nil
+    }
+
+    var serverPreferences: [String: Bool] {
+        [
+            "trade_opened": tradeOpened,
+            "trade_closed": tradeClosed,
+            "profit_protection": profitProtection,
+            "engine_alerts": engineAlerts,
+            "connection_alerts": connectionAlerts
+        ]
+    }
+
+    private enum EventCategory {
+        case tradeOpened, tradeClosed, protection, engine, connection
+    }
+
+    private func category(for text: String, pnl: Double?) -> EventCategory {
+        if pnl != nil || text.contains("النتيجة") || text.contains("TP") || text.contains("SL") { return .tradeClosed }
+        if text.contains("حماية") { return .protection }
+        if text.contains("اتصال") || text.contains("MT5") { return .connection }
+        if text.contains("تنفيذ") || text.contains("صفقة") { return .tradeOpened }
+        return .engine
+    }
+
+    private func categoryEnabled(_ category: EventCategory) -> Bool {
+        switch category {
+        case .tradeOpened: return tradeOpened
+        case .tradeClosed: return tradeClosed
+        case .protection: return profitProtection
+        case .engine: return engineAlerts
+        case .connection: return connectionAlerts
+        }
     }
 
     private func eventTitle(_ text: String) -> String {
