@@ -15,13 +15,14 @@ struct MetricCard: View {
     let title: String
     let value: String
     let systemImage: String
+    var tint: Color = .blue
 
     var body: some View {
         SurfaceCard {
             VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: systemImage)
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(tint)
 
                 Text(value)
                     .font(.title3.weight(.semibold))
