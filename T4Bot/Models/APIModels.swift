@@ -211,3 +211,17 @@ enum JSONValue: Codable, Equatable, Sendable {
         }
     }
 }
+
+
+struct NotificationStatusResponse: Codable, Equatable, Sendable {
+    let configured: Bool
+    let registeredDevices: Int
+    let environment: String
+}
+
+struct NotificationTestResponse: Codable, Equatable, Sendable {
+    let ok: Bool
+    let message: String
+    let sent: Int
+    let failed: Int
+}
