@@ -73,6 +73,14 @@ actor APIClient {
         return data
     }
 
+    func notificationStatus(using configuration: APIConfiguration) async throws -> NotificationStatusResponse {
+        try await request(path: "/v1/notifications/status", method: "GET", configuration: configuration)
+    }
+
+    func testServerPush(using configuration: APIConfiguration) async throws -> NotificationTestResponse {
+        try await request(path: "/v1/notifications/test", method: "POST", configuration: configuration)
+    }
+
     func registerNotifications(token: String, enabled: Bool, preferences: [String: Bool], using configuration: APIConfiguration) async throws -> CommandResponse {
         struct Payload: Encodable {
             let token: String
