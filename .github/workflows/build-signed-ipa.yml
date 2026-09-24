@@ -1,0 +1,139 @@
+name: Build Signed IPA
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: signed-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  signed-ipa:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+      IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate signing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$IOS_CERTIFICATE_P12_BASE64"
+          test -n "$IOS_CERTIFICATE_PASSWORD"
+          test -n "$IOS_PROVISIONING_PROFILE_BASE64"
+          test -n "$IOS_BUNDLE_ID"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Install signing identity and provisioning profile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CERT_PATH="$RUNNER_TEMP/t4bot-signing.p12"
+          PROFILE_PATH="$RUNNER_TEMP/t4bot.mobileprovision"
+          PROFILE_PLIST="$RUNNER_TEMP/t4bot-profile.plist"
+          KEYCHAIN_PATH="$RUNNER_TEMP/t4bot-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+
+          python3 - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          Path(os.environ["RUNNER_TEMP"], "t4bot-signing.p12").write_bytes(
+              base64.b64decode(os.environ["IOS_CERTIFICATE_P12_BASE64"])
+          )
+          Path(os.environ["RUNNER_TEMP"], "t4bot.mobileprovision").write_bytes(
+              base64.b64decode(os.environ["IOS_PROVISIONING_PROFILE_BASE64"])
+          )
+          PY
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH"             -k "$KEYCHAIN_PATH"             -P "$IOS_CERTIFICATE_PASSWORD"             -A             -t cert             -f pkcs12
+          security set-key-partition-list             -S apple-tool:,apple:             -s             -k "$KEYCHAIN_PASSWORD"             "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$PROFILE_PLIST")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")"
+          TEAM_ID="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$PROFILE_PLIST")"
+          APP_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$PROFILE_PLIST")"
+
+          test "$APP_IDENTIFIER" = "$TEAM_ID.$IOS_BUNDLE_ID"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F'"' 'NR==1 {print $2}')"
+          test -n "$SIGNING_IDENTITY"
+
+          {
+            echo "T4BOT_KEYCHAIN_PATH=$KEYCHAIN_PATH"
+            echo "T4BOT_PROFILE_UUID=$PROFILE_UUID"
+            echo "T4BOT_PROFILE_NAME=$PROFILE_NAME"
+            echo "T4BOT_TEAM_ID=$TEAM_ID"
+            echo "T4BOT_SIGNING_IDENTITY=$SIGNING_IDENTITY"
+          } >> "$GITHUB_ENV"
+
+      - name: Build signed iPhoneOS application
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild             -project T4Bot.xcodeproj             -scheme T4Bot             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             -derivedDataPath "$RUNNER_TEMP/T4BotSignedDerivedData"             PRODUCT_BUNDLE_IDENTIFIER="$IOS_BUNDLE_ID"             DEVELOPMENT_TEAM="$T4BOT_TEAM_ID"             CODE_SIGN_STYLE=Manual             CODE_SIGN_IDENTITY="$T4BOT_SIGNING_IDENTITY"             PROVISIONING_PROFILE_SPECIFIER="$T4BOT_PROFILE_NAME"             build
+
+      - name: Verify signature and package IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find "$RUNNER_TEMP/T4BotSignedDerivedData/Build/Products/Release-iphoneos" -maxdepth 1 -type d -name 'T4Bot.app' -print -quit)"
+          test -n "$APP_PATH"
+          test -d "$APP_PATH"
+          test -f "$APP_PATH/embedded.mobileprovision"
+
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          STAGE="$RUNNER_TEMP/T4BotSignedIPA"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/Payload"
+          ditto "$APP_PATH" "$STAGE/Payload/T4Bot.app"
+
+          (
+            cd "$STAGE"
+            /usr/bin/zip -qry "$GITHUB_WORKSPACE/T4Bot-signed.ipa" Payload
+          )
+
+          test -s "$GITHUB_WORKSPACE/T4Bot-signed.ipa"
+          shasum -a 256 "$GITHUB_WORKSPACE/T4Bot-signed.ipa"
+
+      - name: Upload signed IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: T4Bot-signed-ipa
+          path: T4Bot-signed.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/t4bot-signing.p12"
+          rm -f "$RUNNER_TEMP/t4bot.mobileprovision"
+          rm -f "$RUNNER_TEMP/t4bot-profile.plist"
+          if [ -n "${T4BOT_KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$T4BOT_KEYCHAIN_PATH" 2>/dev/null || true
+          fi

@@ -18,6 +18,8 @@ struct APIConfiguration: Equatable, Sendable {
         }
 
         components.path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components.query = nil
+        components.fragment = nil
         guard let url = components.url else { return nil }
 
         self.baseURL = url
@@ -25,8 +27,11 @@ struct APIConfiguration: Equatable, Sendable {
     }
 
     func url(path: String) -> URL {
-        let clean = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        return baseURL.appendingPathComponent(clean)
+        path
+            .split(separator: "/")
+            .reduce(baseURL) { partial, component in
+                partial.appendingPathComponent(String(component))
+            }
     }
 
     func webSocketRequest(path: String) -> URLRequest? {
