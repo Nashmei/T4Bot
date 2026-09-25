@@ -70,8 +70,11 @@ struct TradingSettings: Codable, Equatable, Sendable {
     var symbols: [String]
     var riskPct: Double
     var rr: Double
+    var slPoints: Double
+    var tpPoints: Double
     var minConfidence: Double
     var protectionPct: Double
+    var trailingGapPct: Double
     var maxTradeMinutes: Double
     var maxPositions: Int
     var maxConsecutiveLosses: Int
@@ -80,10 +83,13 @@ struct TradingSettings: Codable, Equatable, Sendable {
     static let defaults = TradingSettings(
         symbols: ["EURUSD"],
         riskPct: 0.25,
-        rr: 3,
+        rr: 0,
+        slPoints: 0,
+        tpPoints: 0,
         minConfidence: 75,
-        protectionPct: 45,
-        maxTradeMinutes: 10,
+        protectionPct: 0,
+        trailingGapPct: 0,
+        maxTradeMinutes: 0,
         maxPositions: 1,
         maxConsecutiveLosses: 3,
         dailyLossLimitPct: 2
@@ -134,8 +140,11 @@ struct LoginResponse: Codable, Equatable, Sendable {
 struct TradingSettingsPatch: Codable, Sendable {
     let riskPct: Double
     let rr: Double
+    let slPoints: Double
+    let tpPoints: Double
     let minConfidence: Double
     let protectionPct: Double
+    let trailingGapPct: Double
     let maxTradeMinutes: Double
     let maxPositions: Int
     let maxConsecutiveLosses: Int
@@ -144,8 +153,11 @@ struct TradingSettingsPatch: Codable, Sendable {
     init(_ value: TradingSettings) {
         riskPct = value.riskPct
         rr = value.rr
+        slPoints = value.slPoints
+        tpPoints = value.tpPoints
         minConfidence = value.minConfidence
         protectionPct = value.protectionPct
+        trailingGapPct = value.trailingGapPct
         maxTradeMinutes = value.maxTradeMinutes
         maxPositions = value.maxPositions
         maxConsecutiveLosses = value.maxConsecutiveLosses
