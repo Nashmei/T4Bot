@@ -45,14 +45,33 @@ struct SettingsView: View {
 
                 Section("المخاطرة") {
                     numericRow("المخاطرة %", value: $draft.riskPct)
-                    numericRow("R:R", value: $draft.rr)
                     numericRow("الثقة %", value: $draft.minConfidence)
-                    numericRow("الحماية %", value: $draft.protectionPct)
-                    numericRow("مدة الصفقة بالدقائق", value: $draft.maxTradeMinutes)
-
                     Stepper("حد المراكز: \(draft.maxPositions)", value: $draft.maxPositions, in: 1...10)
                     Stepper("حد الخسائر: \(draft.maxConsecutiveLosses)", value: $draft.maxConsecutiveLosses, in: 0...20)
                     numericRow("حد Equity اليومي %", value: $draft.dailyLossLimitPct)
+                }
+
+                Section("إدارة AI • 0 = يقرر AI") {
+                    numericRow("R:R", value: $draft.rr)
+                    numericRow("SL Points", value: $draft.slPoints)
+                    numericRow("TP Points", value: $draft.tpPoints)
+                    numericRow("الحماية %", value: $draft.protectionPct)
+                    numericRow("Trailing Gap %", value: $draft.trailingGapPct)
+                    numericRow("المدة بالدقائق", value: $draft.maxTradeMinutes)
+
+                    Button("إعادة الكل إلى AI") {
+                        draft.rr = 0
+                        draft.slPoints = 0
+                        draft.tpPoints = 0
+                        draft.protectionPct = 0
+                        draft.trailingGapPct = 0
+                        draft.maxTradeMinutes = 0
+                    }
+                    .foregroundStyle(.tint)
+
+                    Text("القيمة 0 تعني أن AI يحدد الإعداد لكل صفقة. أي قيمة موجبة تصبح Manual Override.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("الإشعارات") {
