@@ -69,7 +69,7 @@ private struct AnalysisRow: View {
                 .foregroundStyle(item.side == "BUY" ? .green : .red)
 
                 if let strategy = item.strategy {
-                    Text(strategy)
+                    Text(arabic(strategy))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -79,6 +79,18 @@ private struct AnalysisRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+    }
+
+    private func arabic(_ raw: String) -> String {
+        let map = [
+            "TREND": "اتجاه", "NO_TRADE": "انتظار", "RANGE": "تذبذب",
+            "trend_wait_pullback": "انتظار تصحيح مناسب",
+            "waiting_live_momentum": "انتظار زخم مؤكد",
+            "gold_wait_confirmation": "الذهب: انتظار تأكيد",
+            "spread_spike": "السبريد مرتفع",
+            "insufficient_ticks": "بيانات السوق غير مكتملة"
+        ]
+        return map[raw] ?? raw.replacingOccurrences(of: "_", with: " ")
     }
 }
