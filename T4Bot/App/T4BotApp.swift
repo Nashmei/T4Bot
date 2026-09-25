@@ -5,7 +5,8 @@ struct T4BotApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var connectionStore = ConnectionStore()
     @StateObject private var appModel = AppModel()
-    @StateObject private var notificationManager = NotificationManager.shared\n    @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
+    @StateObject private var notificationManager = NotificationManager.shared
+    @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -13,7 +14,8 @@ struct T4BotApp: App {
                 .environmentObject(connectionStore)
                 .environmentObject(appModel)
                 .environmentObject(notificationManager)
-                .environment(\.layoutDirection, .rightToLeft)\n                .preferredColorScheme(AppAppearance(rawValue: appearance)?.scheme)
+                .environment(\.layoutDirection, .rightToLeft)
+                .preferredColorScheme(AppAppearance(rawValue: appearance)?.scheme)
                 .task {
                     if let configuration = connectionStore.configuration {
                         appModel.connect(using: configuration)
