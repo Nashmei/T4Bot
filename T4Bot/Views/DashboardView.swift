@@ -52,9 +52,9 @@ struct DashboardView: View {
                     .padding()
                 } else {
                     ContentUnavailableView {
-                        Label("بانتظار الخادم", systemImage: "server.rack")
+                        Label("بانتظار الاتصال", systemImage: "antenna.radiowaves.left.and.right")
                     } description: {
-                        Text("سيظهر وضع Mtbot هنا بعد أول تحديث ناجح.")
+                        Text("ستظهر بيانات Mtbot بعد أول تحديث ناجح.")
                     } actions: {
                         Button("تحديث") {
                             Task { await appModel.refresh() }
@@ -111,7 +111,7 @@ struct DashboardView: View {
                 }
 
                 if let account = snapshot.account {
-                    Text("\(account.login) • \(account.server)")
+                    Text("حساب MT5 • \(account.login)")
                         .font(.headline)
                         .textSelection(.enabled)
                 } else {
