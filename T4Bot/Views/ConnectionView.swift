@@ -23,7 +23,7 @@ struct ConnectionView: View {
                     VStack(spacing: 6) {
                         Text("T4Bot")
                             .font(.largeTitle.bold())
-                        Text("لوحة التحكم الرسمية لـ Mtbot")
+                        Text("تحكم لحظي • تحليل AI • صفقات MT5")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
