@@ -83,10 +83,6 @@ final class AppModel: ObservableObject {
         isAppActive = false
         reconnectIndicatorTask?.cancel()
         reconnectIndicatorTask = nil
-
-        // Keep the WebSocket alive for as long as iOS allows background
-        // execution so the app can turn incoming trade events into local
-        // notifications. iOS may still suspend the process later.
         fallbackTask?.cancel()
         fallbackTask = nil
     }
@@ -103,9 +99,8 @@ final class AppModel: ObservableObject {
 
         reconnectIndicatorTask?.cancel()
         reconnectIndicatorTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(1200))
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self else { return }
-
             if self.lastUpdated == previousUpdate {
                 self.connectionState = .reconnecting
             }
@@ -129,17 +124,10 @@ final class AppModel: ObservableObject {
             connectionState = .live
             reconnectIndicatorTask?.cancel()
             reconnectIndicatorTask = nil
-
-            if !silent {
-                errorMessage = nil
-            }
+            if !silent { errorMessage = nil }
         } catch {
-            if isAppActive {
-                connectionState = .reconnecting
-            }
-            if !silent && isAppActive {
-                errorMessage = localized(error)
-            }
+            if isAppActive { connectionState = .reconnecting }
+            if !silent && isAppActive { errorMessage = localized(error) }
         }
     }
 
@@ -150,26 +138,20 @@ final class AppModel: ObservableObject {
 
     func loadHistory(silent: Bool = false) async {
         guard let configuration else { return }
-
         do {
             tradeHistory = try await client.tradeHistory(using: configuration)
         } catch {
-            if !silent && isAppActive {
-                errorMessage = localized(error)
-            }
+            if !silent && isAppActive { errorMessage = localized(error) }
         }
     }
 
     func loadSymbols(silent: Bool = false) async {
         guard let configuration else { return }
-
         do {
             let response = try await client.symbols(using: configuration)
-            availableSymbols = response.available.sorted()
+            availableSymbols = response.available
         } catch {
-            if !silent && isAppActive {
-                errorMessage = localized(error)
-            }
+            if !silent && isAppActive { errorMessage = localized(error) }
         }
     }
 
@@ -188,13 +170,13 @@ final class AppModel: ObservableObject {
 
     func runAnalysis() async {
         guard let configuration else { return }
-
         isPerformingCommand = true
         defer { isPerformingCommand = false }
 
         do {
             _ = try await client.runAnalysis(using: configuration)
-            operationMessage = "اكتمل التحليل."
+            operationMessage = "تم تحديث التحليل."
+            await refresh(silent: true)
         } catch {
             errorMessage = localized(error)
         }
@@ -202,13 +184,13 @@ final class AppModel: ObservableObject {
 
     func update(settings: TradingSettings) async {
         guard let configuration else { return }
-
         isPerformingCommand = true
         defer { isPerformingCommand = false }
 
         do {
             let response = try await client.updateSettings(settings, using: configuration)
             operationMessage = response.message
+            await refresh(silent: true)
         } catch {
             errorMessage = localized(error)
         }
@@ -216,13 +198,13 @@ final class AppModel: ObservableObject {
 
     func update(symbols: [String]) async {
         guard let configuration else { return }
-
         isPerformingCommand = true
         defer { isPerformingCommand = false }
 
         do {
             _ = try await client.updateSymbols(symbols, using: configuration)
-            operationMessage = "تم تحديث الأزواج."
+            operationMessage = "تم تحديث الأسواق."
+            await refresh(silent: true)
             await loadSymbols(silent: true)
         } catch {
             errorMessage = localized(error)
@@ -231,7 +213,6 @@ final class AppModel: ObservableObject {
 
     func login(server: String, login: Int64, password: String) async -> Bool {
         guard let configuration else { return false }
-
         isPerformingCommand = true
         defer { isPerformingCommand = false }
 
@@ -256,9 +237,7 @@ final class AppModel: ObservableObject {
     private func startRealtime(markReconnecting: Bool) {
         guard let configuration, isAppActive else { return }
 
-        if markReconnecting {
-            connectionState = .reconnecting
-        }
+        if markReconnecting { connectionState = .reconnecting }
 
         realtime.connect(using: configuration) { [weak self] update in
             Task { @MainActor [weak self] in
@@ -274,11 +253,7 @@ final class AppModel: ObservableObject {
                     self.errorMessage = nil
 
                 case .event(let event):
-                    await self.notifications.handle(
-                        event: event,
-                        account: self.snapshot?.account
-                    )
-
+                    await self.notifications.handle(event: event, account: self.snapshot?.account)
                     if event.type == "trade_closed" {
                         await self.loadHistory(silent: true)
                     }
@@ -295,15 +270,18 @@ final class AppModel: ObservableObject {
 
         fallbackTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .milliseconds(250))
                 guard let self else { return }
 
-                if let lastUpdated = self.lastUpdated,
-                   Date().timeIntervalSince(lastUpdated) > 1.5 {
-                    self.connectionState = .reconnecting
+                guard let lastUpdated = self.lastUpdated else {
+                    await self.refresh(silent: true)
+                    continue
                 }
 
-                await self.refresh(silent: true)
+                if Date().timeIntervalSince(lastUpdated) > 1.0 {
+                    self.connectionState = .reconnecting
+                    await self.refresh(silent: true)
+                }
             }
         }
     }
@@ -312,13 +290,13 @@ final class AppModel: ObservableObject {
         _ action: (APIConfiguration) async throws -> CommandResponse
     ) async {
         guard let configuration else { return }
-
         isPerformingCommand = true
         defer { isPerformingCommand = false }
 
         do {
             let response = try await action(configuration)
             operationMessage = response.message
+            await refresh(silent: true)
         } catch {
             errorMessage = localized(error)
         }
