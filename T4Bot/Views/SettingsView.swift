@@ -9,7 +9,8 @@ struct SettingsView: View {
     @State private var loadedAccount: Int64?
     @State private var hasLocalEdits = false
     @State private var showSymbolPicker = false
-    @FocusState private var numericFieldFocused: Bool\n    @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
+    @FocusState private var numericFieldFocused: Bool
+    @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
 
     var body: some View {
         NavigationStack {
@@ -213,7 +214,8 @@ struct SettingsView: View {
     }
 }
 
-private struct SymbolPickerView: View {\n    private let popularBases = ["XAUUSD","EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD","EURJPY","GBPJPY","EURGBP","XAGUSD"]
+private struct SymbolPickerView: View {
+    private let popularBases = ["XAUUSD","EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD","EURJPY","GBPJPY","EURGBP","XAGUSD"]
     let available: [String]
     @Binding var selection: Set<String>
 
