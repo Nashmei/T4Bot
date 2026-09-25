@@ -53,7 +53,7 @@ final class RealtimeClient {
                     socket.cancel(with: .goingAway, reason: nil)
                     socketTask = nil
                     if Task.isCancelled { return }
-                    try? await Task.sleep(for: .milliseconds(200))
+                    try? await Task.sleep(for: .milliseconds(75))
                 }
             }
         }
