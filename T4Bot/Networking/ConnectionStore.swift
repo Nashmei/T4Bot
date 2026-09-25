@@ -3,68 +3,56 @@ import Foundation
 @MainActor
 final class ConnectionStore: ObservableObject {
     private enum Keys {
-        static let baseURL = "t4bot.api.baseURL"
-        static let baseURLAccount = "control-api-base-url"
         static let tokenAccount = "control-api-token"
     }
 
-    @Published var baseURLString: String
-    @Published var token: String
+    @Published var password: String
     @Published var validationMessage: String?
     @Published private(set) var isConfigured: Bool
 
     init() {
-        let keychainURL = KeychainStore.read(account: Keys.baseURLAccount) ?? ""
-        let storedURL = keychainURL.isEmpty ? (UserDefaults.standard.string(forKey: Keys.baseURL) ?? "") : keychainURL
         let storedToken = KeychainStore.read(account: Keys.tokenAccount) ?? ""
-        baseURLString = storedURL
-        token = storedToken
-        isConfigured = APIConfiguration(baseURLString: storedURL, token: storedToken) != nil
+        password = storedToken
+        isConfigured = APIConfiguration(token: storedToken) != nil
     }
 
-    /// The active, persisted connection used by the app after a successful save.
+    var serverDisplayName: String {
+        APIConfiguration.serverURL.host ?? "54-227-12-124.nip.io"
+    }
+
     var configuration: APIConfiguration? {
         guard isConfigured else { return nil }
-        return APIConfiguration(baseURLString: baseURLString, token: token)
+        return APIConfiguration(token: password)
     }
 
-    /// A draft connection built from the fields currently being edited.
     var candidateConfiguration: APIConfiguration? {
-        APIConfiguration(baseURLString: baseURLString, token: token)
+        APIConfiguration(token: password)
     }
 
     @discardableResult
     func save() -> Bool {
-        guard candidateConfiguration != nil else {
-            validationMessage = "استخدم رابط HTTPS صالحاً وأدخل رمز الوصول."
+        let trimmed = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard APIConfiguration(token: trimmed) != nil else {
+            validationMessage = "أدخل كلمة المرور."
             return false
         }
 
         do {
-            UserDefaults.standard.set(
-                baseURLString.trimmingCharacters(in: .whitespacesAndNewlines),
-                forKey: Keys.baseURL
-            )
-            try KeychainStore.save(
-                token.trimmingCharacters(in: .whitespacesAndNewlines),
-                account: Keys.tokenAccount
-            )
+            try KeychainStore.save(trimmed, account: Keys.tokenAccount)
+            password = trimmed
             validationMessage = nil
             isConfigured = true
             return true
         } catch {
-            validationMessage = "تعذر حفظ رمز الوصول في Keychain."
+            validationMessage = "تعذر حفظ بيانات الدخول في iOS Keychain."
             isConfigured = false
             return false
         }
     }
 
     func clear() {
-        UserDefaults.standard.removeObject(forKey: Keys.baseURL)
-        KeychainStore.delete(account: Keys.baseURLAccount)
         KeychainStore.delete(account: Keys.tokenAccount)
-        baseURLString = ""
-        token = ""
+        password = ""
         validationMessage = nil
         isConfigured = false
     }
