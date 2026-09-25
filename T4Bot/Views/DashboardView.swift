@@ -11,72 +11,69 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                if let snapshot = appModel.snapshot {
-                    VStack(spacing: 16) {
-                        header(snapshot)
+            ZStack {
+                AppBackdrop()
 
-                        if let account = snapshot.account {
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                MetricCard(
-                                    title: "الرصيد",
-                                    value: money(account.balance, currency: account.currency),
-                                    systemImage: "banknote"
-                                )
-                                MetricCard(
-                                    title: "Equity",
-                                    value: money(account.equity, currency: account.currency),
-                                    systemImage: "chart.line.uptrend.xyaxis"
-                                )
-                                MetricCard(
-                                    title: "الربح العائم",
-                                    value: money(account.profit, currency: account.currency),
-                                    systemImage: "waveform.path.ecg",
-                                    tint: account.profit >= 0 ? .green : .red
-                                )
-                                MetricCard(
-                                    title: "المراكز",
-                                    value: "\(snapshot.positions.count) / \(snapshot.engine.maxPositions)",
-                                    systemImage: "square.stack.3d.up"
-                                )
+                ScrollView {
+                    if let snapshot = appModel.snapshot {
+                        VStack(spacing: 16) {
+                            hero(snapshot)
+
+                            if let account = snapshot.account {
+                                LazyVGrid(columns: columns, spacing: 12) {
+                                    MetricCard(
+                                        title: "الرصيد",
+                                        value: money(account.balance, currency: account.currency),
+                                        systemImage: "banknote.fill"
+                                    )
+                                    MetricCard(
+                                        title: "Equity",
+                                        value: money(account.equity, currency: account.currency),
+                                        systemImage: "chart.line.uptrend.xyaxis",
+                                        tint: .purple
+                                    )
+                                    MetricCard(
+                                        title: "العائم",
+                                        value: money(account.profit, currency: account.currency),
+                                        systemImage: "waveform.path.ecg",
+                                        tint: account.profit >= 0 ? .green : .red
+                                    )
+                                    MetricCard(
+                                        title: "المراكز",
+                                        value: "\(snapshot.positions.count) / \(snapshot.engine.maxPositions)",
+                                        systemImage: "square.stack.3d.up.fill",
+                                        tint: .orange
+                                    )
+                                }
                             }
-                        }
 
-                        engineCard(snapshot)
-                        readinessCard(snapshot.readiness)
+                            engineCard(snapshot)
 
-                        if !snapshot.analysis.isEmpty {
-                            analysisPreview(snapshot.analysis)
+                            if !snapshot.analysis.isEmpty {
+                                analysisPreview(snapshot.analysis)
+                            }
+
+                            readinessCard(snapshot.readiness)
                         }
-                    }
-                    .padding()
-                } else {
-                    ContentUnavailableView {
-                        Label("بانتظار الاتصال", systemImage: "antenna.radiowaves.left.and.right")
-                    } description: {
-                        Text("ستظهر بيانات Mtbot بعد أول تحديث ناجح.")
-                    } actions: {
-                        Button("تحديث") {
-                            Task { await appModel.refresh() }
+                        .padding(16)
+                    } else {
+                        ContentUnavailableView {
+                            Label("بانتظار الاتصال", systemImage: "antenna.radiowaves.left.and.right")
+                        } description: {
+                            Text("تظهر البيانات فور وصول أول تحديث.")
+                        } actions: {
+                            Button("تحديث") { Task { await appModel.refresh() } }
                         }
                     }
                 }
             }
-            .navigationTitle("لوحة التحكم")
+            .navigationTitle("T4Bot")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await appModel.refresh() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .disabled(appModel.isRefreshing)
-                    .accessibilityLabel("تحديث")
+                    connectionPill
                 }
             }
-            .refreshable {
-                await appModel.refresh()
-            }
+            .refreshable { await appModel.refresh() }
             .loadingOverlay(appModel.isPerformingCommand)
             .confirmationDialog(
                 "إيقاف المحرك؟",
@@ -88,42 +85,43 @@ struct DashboardView: View {
                 }
                 Button("إلغاء", role: .cancel) {}
             } message: {
-                Text("سلوك Mtbot الحالي عند Stop يحاول إغلاق المراكز التي يديرها البوت. لن يرسل T4Bot الأمر بدون هذا التأكيد.")
+                Text("عند الإيقاف سيحاول Mtbot إغلاق المراكز التي يديرها.")
             }
         }
     }
 
-    private func header(_ snapshot: ServerSnapshot) -> some View {
+    private func hero(_ snapshot: ServerSnapshot) -> some View {
         SurfaceCard {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    StatusPill(
-                        title: snapshot.engine.running ? "المحرك يعمل" : "المحرك متوقف",
-                        isPositive: snapshot.engine.running
-                    )
-                    connectionPill
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(snapshot.engine.running ? "المحرك يعمل" : "المحرك متوقف")
+                            .font(.title2.bold())
+                        Text(snapshot.account.map { "حساب MT5 • \($0.login)" } ?? "MT5 غير متصل")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Spacer()
-                    if let account = snapshot.account {
-                        Text(account.isDemo ? "DEMO" : "غير تجريبي")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(account.isDemo ? .blue : .red)
+
+                    ZStack {
+                        Circle()
+                            .fill((snapshot.engine.running ? Color.green : Color.secondary).opacity(0.12))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: snapshot.engine.running ? "bolt.fill" : "pause.fill")
+                            .foregroundStyle(snapshot.engine.running ? .green : .secondary)
                     }
                 }
 
-                if let account = snapshot.account {
-                    Text("حساب MT5 • \(account.login)")
-                        .font(.headline)
-                        .textSelection(.enabled)
-                } else {
-                    Text("MT5 غير متصل")
-                        .font(.headline)
-                }
-
-                HStack(spacing: 16) {
+                HStack(spacing: 18) {
                     Label("\(snapshot.engine.scanCount)", systemImage: "arrow.triangle.2.circlepath")
                     Label(String(format: "%.2f ث", snapshot.engine.lastCycleSeconds), systemImage: "timer")
+                    if let account = snapshot.account {
+                        Label(account.isDemo ? "DEMO" : "LIVE", systemImage: "shield.fill")
+                            .foregroundStyle(account.isDemo ? .blue : .orange)
+                    }
                 }
-                .font(.caption)
+                .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             }
         }
@@ -132,12 +130,12 @@ struct DashboardView: View {
     private func engineCard(_ snapshot: ServerSnapshot) -> some View {
         SurfaceCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("المحرك")
-                    .font(.headline)
-
-                Text(snapshot.settings.symbols.joined(separator: " • "))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                SectionHeader(
+                    "المحرك",
+                    subtitle: snapshot.settings.symbols.isEmpty
+                        ? "لم يتم اختيار أسواق"
+                        : snapshot.settings.symbols.joined(separator: " • ")
+                )
 
                 Button {
                     if snapshot.engine.running {
@@ -150,74 +148,107 @@ struct DashboardView: View {
                         snapshot.engine.running ? "إيقاف المحرك" : "تشغيل المحرك",
                         systemImage: snapshot.engine.running ? "stop.fill" : "play.fill"
                     )
+                    .fontWeight(.bold)
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(snapshot.engine.running ? .red : .accentColor)
-            }
-        }
-    }
-
-    private func readinessCard(_ readiness: ReadinessSnapshot) -> some View {
-        SurfaceCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("جاهزية MT5")
-                    .font(.headline)
-
-                readinessRow("الاتصال", readiness.connected)
-                readinessRow("Terminal Trading", readiness.tradeAllowed)
-                readinessRow("Account Trading", readiness.accountTradeAllowed)
-                readinessRow("Expert Trading", readiness.tradeExpert)
+                .tint(snapshot.engine.running ? .red : T4Palette.accent)
             }
         }
     }
 
     private func analysisPreview(_ rows: [AnalysisSnapshot]) -> some View {
         SurfaceCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("آخر تحليل")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader("آخر قراءة AI", subtitle: "تتحدث مباشرة من المحرك")
 
-                ForEach(rows.prefix(4)) { item in
-                    HStack {
+                ForEach(rows.prefix(5)) { item in
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(.primary.opacity(0.055))
+                                .frame(width: 40, height: 40)
+                            Text(String(item.symbol.prefix(3)))
+                                .font(.caption.bold())
+                        }
+
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.symbol)
-                                .font(.subheadline.weight(.semibold))
-                            Text(item.strategy ?? item.reason ?? item.state)
+                                .font(.subheadline.weight(.bold))
+                            Text(displayText(item.strategy ?? item.reason ?? item.state))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
+
                         Spacer()
-                        Text(item.regime)
-                            .font(.caption.weight(.medium))
+
+                        if let confidence = item.confidence {
+                            Text("\(Int(confidence))%")
+                                .font(.caption.monospacedDigit().weight(.bold))
+                        } else {
+                            Text(displayText(item.regime))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
         }
     }
 
+    private func readinessCard(_ readiness: ReadinessSnapshot) -> some View {
+        SurfaceCard {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("الجاهزية", subtitle: readiness.ready ? "كل الأنظمة جاهزة" : "يوجد عنصر يحتاج انتباه")
+                HStack(spacing: 8) {
+                    readinessBadge("MT5", readiness.connected)
+                    readinessBadge("Trading", readiness.tradeAllowed && readiness.accountTradeAllowed)
+                    readinessBadge("Expert", readiness.tradeExpert)
+                }
+            }
+        }
+    }
+
+    private func readinessBadge(_ title: String, _ ready: Bool) -> some View {
+        Label(title, systemImage: ready ? "checkmark.circle.fill" : "xmark.circle.fill")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(ready ? .green : .red)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(.primary.opacity(0.045), in: Capsule())
+    }
+
     private var connectionPill: some View {
         let state = appModel.connectionState
-        return HStack(spacing: 5) {
+        return HStack(spacing: 6) {
             Circle()
                 .fill(state == .live ? Color.green : state == .reconnecting ? Color.orange : Color.red)
                 .frame(width: 7, height: 7)
-            Text(state == .live ? "LIVE" : state == .reconnecting ? "إعادة اتصال" : "Offline")
-                .font(.caption2.weight(.bold))
+            Text(state == .live ? "مباشر" : state == .reconnecting ? "يتصل" : "غير متصل")
+                .font(.caption2.bold())
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
         .background(.thinMaterial, in: Capsule())
     }
 
-    private func readinessRow(_ title: String, _ value: Bool) -> some View {
-        HStack {
-            Image(systemName: value ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(value ? .green : .red)
-            Text(title)
-            Spacer()
-        }
-        .font(.subheadline)
+    private func displayText(_ raw: String) -> String {
+        let map = [
+            "TREND": "اتجاه",
+            "RANGE": "تذبذب",
+            "BREAKOUT": "اختراق",
+            "VOLATILE": "تذبذب قوي",
+            "MIXED": "مختلط",
+            "NO_TRADE": "انتظار",
+            "trend_wait_pullback": "انتظار تصحيح",
+            "waiting_live_momentum": "انتظار زخم",
+            "gold_wait_confirmation": "انتظار تأكيد الذهب",
+            "spread_spike": "السبريد مرتفع",
+            "insufficient_ticks": "بيانات السوق غير مكتملة"
+        ]
+        return map[raw] ?? raw.replacingOccurrences(of: "_", with: " ")
     }
 
     private func money(_ value: Double, currency: String) -> String {
