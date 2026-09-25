@@ -12,7 +12,6 @@ struct AccountView: View {
                 if let account = appModel.snapshot?.account {
                     Section("MT5") {
                         LabeledContent("الحساب", value: String(account.login))
-                        LabeledContent("الخادم", value: account.server)
                         LabeledContent("الوضع", value: account.isDemo ? "DEMO" : "غير تجريبي")
                         LabeledContent("العملة", value: account.currency)
                     }
@@ -28,7 +27,7 @@ struct AccountView: View {
                         ContentUnavailableView(
                             "MT5 غير متصل",
                             systemImage: "person.crop.circle.badge.exclamationmark",
-                            description: Text("اربط حساب DEMO من الخادم.")
+                            description: Text("اربط حساب MT5 DEMO من التطبيق.")
                         )
                     }
                 }
@@ -51,12 +50,7 @@ struct AccountView: View {
                     .disabled(appModel.snapshot?.engine.running == true)
                 }
 
-                Section("اتصال T4Bot") {
-                    Text(connectionStore.serverDisplayName)
-                        .font(.footnote.monospaced())
-                        .textSelection(.enabled)
-
-                    Button("نسيان اتصال التطبيق", role: .destructive) {
+                Section("اتصال T4Bot") {\n                    LabeledContent("الحالة") {\n                        Label("متصل وآمن", systemImage: "lock.fill")\n                            .foregroundStyle(.green)\n                    }\n\n                    Button("نسيان اتصال التطبيق", role: .destructive) {
                         showDisconnect = true
                     }
                 }
@@ -116,7 +110,7 @@ private struct MT5LoginView: View {
                 } header: {
                     Text("بيانات MT5")
                 } footer: {
-                    Text("T4Bot لا يحفظ كلمة مرور MT5. يتم إرسالها مباشرة إلى خادمك عبر HTTPS.")
+                    Text("T4Bot لا يحفظ كلمة مرور MT5، ويتم إرسالها عبر اتصال HTTPS مشفّر.")
                 }
 
                 Section {
