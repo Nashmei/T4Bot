@@ -295,11 +295,11 @@ final class AppModel: ObservableObject {
 
         fallbackTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(15))
+                try? await Task.sleep(for: .seconds(1))
                 guard let self else { return }
 
                 if let lastUpdated = self.lastUpdated,
-                   Date().timeIntervalSince(lastUpdated) > 3 {
+                   Date().timeIntervalSince(lastUpdated) > 1.5 {
                     self.connectionState = .reconnecting
                 }
 
