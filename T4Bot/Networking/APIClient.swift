@@ -73,28 +73,6 @@ actor APIClient {
         return data
     }
 
-    func notificationStatus(using configuration: APIConfiguration) async throws -> NotificationStatusResponse {
-        try await request(path: "/v1/notifications/status", method: "GET", configuration: configuration)
-    }
-
-    func testServerPush(using configuration: APIConfiguration) async throws -> NotificationTestResponse {
-        try await request(path: "/v1/notifications/test", method: "POST", configuration: configuration)
-    }
-
-    func registerNotifications(token: String, enabled: Bool, preferences: [String: Bool], using configuration: APIConfiguration) async throws -> CommandResponse {
-        struct Payload: Encodable {
-            let token: String
-            let enabled: Bool
-            let preferences: [String: Bool]
-        }
-        return try await request(
-            path: "/v1/notifications/register",
-            method: "POST",
-            body: Payload(token: token, enabled: enabled, preferences: preferences),
-            configuration: configuration
-        )
-    }
-
     func login(server: String, login: Int64, password: String, using configuration: APIConfiguration) async throws -> LoginResponse {
         try await request(
             path: "/v1/account/login",

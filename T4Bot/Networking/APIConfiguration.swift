@@ -1,28 +1,15 @@
 import Foundation
 
 struct APIConfiguration: Equatable, Sendable {
+    static let serverURL = URL(string: "https://54-227-12-124.nip.io")!
+
     let baseURL: URL
     let token: String
 
-    init?(baseURLString: String, token: String) {
-        let trimmedURL = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+    init?(token: String) {
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard
-            !trimmedToken.isEmpty,
-            var components = URLComponents(string: trimmedURL),
-            components.scheme?.lowercased() == "https",
-            components.host != nil
-        else {
-            return nil
-        }
-
-        components.path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        components.query = nil
-        components.fragment = nil
-        guard let url = components.url else { return nil }
-
-        self.baseURL = url
+        guard !trimmedToken.isEmpty else { return nil }
+        self.baseURL = Self.serverURL
         self.token = trimmedToken
     }
 
