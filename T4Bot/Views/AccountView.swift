@@ -70,7 +70,7 @@ struct AccountView: View {
                 isPresented: $showDisconnect,
                 titleVisibility: .visible
             ) {
-                Button("نسيان الخادم والرمز", role: .destructive) {
+                Button("نسيان بيانات الدخول", role: .destructive) {
                     appModel.disconnect()
                     connectionStore.clear()
                 }
