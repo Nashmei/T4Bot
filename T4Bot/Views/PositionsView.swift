@@ -8,7 +8,6 @@ struct PositionsView: View {
     enum Segment: String, CaseIterable, Identifiable {
         case open = "مفتوحة"
         case history = "السجل"
-
         var id: String { rawValue }
     }
 
@@ -19,28 +18,32 @@ struct PositionsView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {\n                AppBackdrop()\n                VStack(spacing: 0) {
-                Picker("الصفقات", selection: $selection) {
-                    Text("مفتوحة \(appModel.snapshot?.positions.count ?? 0)")
-                        .tag(Segment.open)
-                    Text("السجل \(appModel.tradeHistory.count)")
-                        .tag(Segment.history)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.top, 8)
-                .padding(.bottom, 10)
+            ZStack {
+                AppBackdrop()
 
-                Group {
-                    switch selection {
-                    case .open:
-                        openPositions
-                    case .history:
-                        history
+                VStack(spacing: 0) {
+                    Picker("الصفقات", selection: $selection) {
+                        Text("مفتوحة \(appModel.snapshot?.positions.count ?? 0)")
+                            .tag(Segment.open)
+                        Text("السجل \(appModel.tradeHistory.count)")
+                            .tag(Segment.history)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+                    .padding(.bottom, 12)
+
+                    Group {
+                        switch selection {
+                        case .open:
+                            openPositions
+                        case .history:
+                            history
+                        }
                     }
                 }
             }
-                }\n            }\n            .navigationTitle("الصفقات")
+            .navigationTitle("الصفقات")
             .refreshable {
                 await appModel.refresh(silent: true)
                 await appModel.loadHistory(silent: true)
@@ -69,13 +72,15 @@ struct PositionsView: View {
                 } label: {
                     PositionRow(position: position, currency: currency)
                 }
+                .listRowBackground(Color.clear)
             }
-            .listStyle(.plain)\n            .t4ListBackground()
+            .listStyle(.plain)
+            .t4ListBackground()
         } else {
             ContentUnavailableView(
                 "لا توجد مراكز مفتوحة",
                 systemImage: "tray",
-                description: Text("أي صفقة تُغلق ستبقى محفوظة في تبويب السجل مع نتيجتها.")
+                description: Text("أي صفقة تُغلق ستبقى محفوظة في السجل.")
             )
         }
     }
@@ -86,7 +91,7 @@ struct PositionsView: View {
             ContentUnavailableView(
                 "لا يوجد سجل بعد",
                 systemImage: "clock.arrow.circlepath",
-                description: Text("ستظهر هنا نتائج الصفقات المغلقة مع سبب الإغلاق والربح أو الخسارة.")
+                description: Text("ستظهر هنا نتائج الصفقات المغلقة.")
             )
         } else {
             List {
@@ -120,7 +125,7 @@ struct PositionsView: View {
                                 ticket: trade.ticket,
                                 imageID: trade.imageId,
                                 rows: [
-                                    ("الاستراتيجية", trade.strategy.isEmpty ? "—" : trade.strategy),
+                                    ("الاستراتيجية", readable(trade.strategy)),
                                     ("الحجم", trade.volume.formatted(.number.precision(.fractionLength(2)))),
                                     ("الدخول", trade.entry.formatted(.number.precision(.fractionLength(2...6)))),
                                     ("الخروج", trade.exit.formatted(.number.precision(.fractionLength(2...6)))),
@@ -133,24 +138,31 @@ struct PositionsView: View {
                         } label: {
                             ClosedTradeRow(trade: trade, currency: currency)
                         }
+                        .listRowBackground(Color.clear)
                     }
                 }
             }
-            .listStyle(.insetGrouped)\n            .t4ListBackground()
+            .listStyle(.insetGrouped)
+            .t4ListBackground()
         }
     }
 
     private func displayResult(_ trade: ClosedTrade) -> String {
-        if !trade.reason.isEmpty {
-            return trade.reason
-        }
-
+        if !trade.reason.isEmpty { return readable(trade.reason) }
         switch trade.result {
-        case "TP": return "TP 🎯"
-        case "SL": return "SL 🛑"
-        case "POSITION_CLOSED": return "إغلاق 🏁"
-        default: return trade.result.isEmpty ? "—" : trade.result
+        case "TP": return "هدف الربح"
+        case "SL": return "وقف الخسارة"
+        case "PROTECTED_EXIT": return "حماية ربح"
+        case "TRAILING_EXIT": return "Trailing"
+        case "BREAKEVEN_EXIT": return "تعادل"
+        case "MAX_DURATION_EXIT": return "انتهاء المدة"
+        case "POSITION_CLOSED": return "إغلاق"
+        default: return trade.result.isEmpty ? "—" : readable(trade.result)
         }
+    }
+
+    private func readable(_ raw: String) -> String {
+        raw.isEmpty ? "—" : raw.replacingOccurrences(of: "_", with: " ")
     }
 
     private func money(_ value: Double) -> String {
@@ -168,7 +180,7 @@ private struct HistoryMetric: View {
             Text(value)
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(positive ? .green : .red)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.65)
                 .lineLimit(1)
 
             Text(title)
@@ -177,7 +189,11 @@ private struct HistoryMetric: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))\n        .overlay { RoundedRectangle(cornerRadius: 16).stroke(.primary.opacity(0.06), lineWidth: 0.5) }
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.primary.opacity(0.06), lineWidth: 0.5)
+        }
     }
 }
 
@@ -187,21 +203,25 @@ private struct PositionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: position.side == "BUY" ? "arrow.up.right.circle.fill" : "arrow.down.right.circle.fill")
-                .font(.title2)
-                .foregroundStyle(position.side == "BUY" ? .green : .red)
+            ZStack {
+                Circle()
+                    .fill((position.side == "BUY" ? Color.green : Color.red).opacity(0.12))
+                    .frame(width: 42, height: 42)
+                Image(systemName: position.side == "BUY" ? "arrow.up.right" : "arrow.down.right")
+                    .font(.headline.bold())
+                    .foregroundStyle(position.side == "BUY" ? .green : .red)
+            }
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 7) {
                     Text(position.symbol)
                         .font(.headline)
-
-                    Text(position.side)
+                    Text(position.side == "BUY" ? "شراء" : "بيع")
                         .font(.caption.bold())
                         .foregroundStyle(position.side == "BUY" ? .green : .red)
                 }
 
-                Text("Ticket \(position.ticket) • \(position.volume.formatted(.number.precision(.fractionLength(2)))) lot")
+                Text("\(position.volume.formatted(.number.precision(.fractionLength(2)))) lot")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -212,7 +232,7 @@ private struct PositionRow: View {
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(position.profit >= 0 ? .green : .red)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 7)
     }
 }
 
@@ -231,12 +251,12 @@ private struct ClosedTradeRow: View {
                     Text(trade.symbol)
                         .font(.headline)
 
-                    Text(trade.side)
+                    Text(trade.side == "BUY" ? "شراء" : "بيع")
                         .font(.caption.bold())
                         .foregroundStyle(trade.side == "BUY" ? .green : .red)
                 }
 
-                Text(trade.strategy.isEmpty ? trade.result : "\(trade.strategy) • \(trade.result)")
+                Text(trade.strategy.isEmpty ? trade.result : trade.strategy.replacingOccurrences(of: "_", with: " "))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -254,7 +274,7 @@ private struct ClosedTradeRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 7)
     }
 }
 
@@ -289,14 +309,14 @@ private struct TradeDetailView: View {
                 }
             }
 
-            Section("تفاصيل الصفقة") {
+            Section("التفاصيل") {
                 LabeledContent("Ticket", value: String(ticket))
-
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     LabeledContent(row.0, value: row.1)
                 }
             }
         }
+        .t4ListBackground()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: imageID) {
