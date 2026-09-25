@@ -130,14 +130,6 @@ struct SettingsView: View {
                     .disabled(appModel.isPerformingCommand || selectedSymbols.isEmpty)
                 }
 
-                Section("تشخيص التطبيق") {
-                    NavigationLink {
-                        APNsDiagnosticsView()
-                    } label: {
-                        Label("APNs / التوقيع والشهادة", systemImage: "checkmark.shield")
-                    }
-                }
-
                 Section {
                     Text("T4Bot يعرض جميع الرموز التي يرجعها MT5 مباشرة، بما فيها رموز البروكر ذات اللاحقات.")
                         .font(.footnote)
