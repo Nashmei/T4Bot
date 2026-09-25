@@ -9,7 +9,7 @@ struct SettingsView: View {
     @State private var loadedAccount: Int64?
     @State private var hasLocalEdits = false
     @State private var showSymbolPicker = false
-    @FocusState private var numericFieldFocused: Bool
+    @FocusState private var numericFieldFocused: Bool\n    @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
 
     var body: some View {
         NavigationStack {
@@ -150,7 +150,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Text("T4Bot يعرض جميع الرموز التي يرجعها MT5 مباشرة، بما فيها رموز البروكر ذات اللاحقات.")
+                    Text("القائمة تأتي مباشرة من MT5. الأكثر تداولاً تظهر أولاً، ويمكن البحث في بقية رموز البروكر.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -213,7 +213,7 @@ struct SettingsView: View {
     }
 }
 
-private struct SymbolPickerView: View {
+private struct SymbolPickerView: View {\n    private let popularBases = ["XAUUSD","EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD","EURJPY","GBPJPY","EURGBP","XAGUSD"]
     let available: [String]
     @Binding var selection: Set<String>
 
@@ -254,7 +254,7 @@ private struct SymbolPickerView: View {
                     }
                 }
 
-                Section("رموز MT5") {
+                Section(query.isEmpty ? "الأكثر تداولاً ثم بقية رموز MT5" : "نتائج البحث") {
                     ForEach(filtered, id: \.self) { symbol in
                         Button {
                             if selection.contains(symbol) {
