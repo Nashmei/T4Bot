@@ -45,7 +45,7 @@ struct SettingsView: View {
                     if !selectedSymbols.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(selectedSymbols.sorted(), id: .self) { symbol in
+                                ForEach(selectedSymbols.sorted(), id: \.self) { symbol in
                                     Text(symbol)
                                         .font(.caption.bold())
                                         .padding(.horizontal, 10)
