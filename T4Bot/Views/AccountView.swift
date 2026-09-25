@@ -52,7 +52,7 @@ struct AccountView: View {
                 }
 
                 Section("اتصال T4Bot") {
-                    Text(connectionStore.baseURLString)
+                    Text(connectionStore.serverDisplayName)
                         .font(.footnote.monospaced())
                         .textSelection(.enabled)
 
