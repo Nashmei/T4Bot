@@ -5,91 +5,163 @@ struct AnalysisView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if let snapshot = appModel.snapshot {
-                    Section {
-                        Button {
-                            Task { await appModel.runAnalysis() }
-                        } label: {
-                            Label("تحليل الأزواج المختارة الآن", systemImage: "waveform.path.ecg")
-                        }
-                        .disabled(appModel.isPerformingCommand)
-                    }
+            ZStack {
+                AppBackdrop()
 
-                    if snapshot.analysis.isEmpty {
-                        Section {
-                            ContentUnavailableView(
-                                "لا يوجد تحليل محفوظ",
-                                systemImage: "chart.xyaxis.line",
-                                description: Text("شغّل التحليل للحصول على قراءة منظمة من نفس Analyzer في Mtbot.")
-                            )
+                ScrollView {
+                    VStack(spacing: 14) {
+                        SurfaceCard {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("تحليل AI")
+                                        .font(.title3.bold())
+                                    Text("يقرأ الأسواق المختارة ويعرض القرار باختصار.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                Button {
+                                    Task { await appModel.runAnalysis() }
+                                } label: {
+                                    Image(systemName: "sparkles")
+                                        .font(.headline)
+                                        .frame(width: 42, height: 42)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(T4Palette.accent)
+                                .disabled(appModel.isPerformingCommand)
+                            }
                         }
-                    } else {
-                        Section("النتائج") {
-                            ForEach(snapshot.analysis) { item in
-                                AnalysisRow(item: item)
+
+                        if let snapshot = appModel.snapshot {
+                            if snapshot.analysis.isEmpty {
+                                ContentUnavailableView(
+                                    "لا يوجد تحليل محفوظ",
+                                    systemImage: "chart.xyaxis.line",
+                                    description: Text("اضغط زر التحليل للحصول على قراءة جديدة.")
+                                )
+                                .padding(.top, 50)
+                            } else {
+                                ForEach(snapshot.analysis) { item in
+                                    AnalysisCard(item: item)
+                                }
                             }
                         }
                     }
+                    .padding(16)
                 }
             }
             .navigationTitle("التحليل")
-            .refreshable {
-                await appModel.refresh()
-            }
+            .refreshable { await appModel.refresh() }
             .loadingOverlay(appModel.isPerformingCommand)
         }
     }
 }
 
-private struct AnalysisRow: View {
+private struct AnalysisCard: View {
     let item: AnalysisSnapshot
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(item.symbol)
-                    .font(.headline)
-                Spacer()
-                Text(arabic(item.regime))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-
-            if item.state == "signal" {
+        SurfaceCard {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Label(item.side ?? "—", systemImage: item.side == "BUY" ? "arrow.up.right" : "arrow.down.right")
-                    Spacer()
-                    if let confidence = item.confidence {
-                        Text("\(confidence.formatted(.number.precision(.fractionLength(0))))%")
-                            .monospacedDigit()
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.symbol)
+                            .font(.title3.bold())
+                        Text(arabic(item.regime))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(item.side == "BUY" ? .green : .red)
 
-                if let strategy = item.strategy {
-                    Text(arabic(strategy))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Spacer()
+
+                    stateBadge
                 }
-            } else {
-                Label(arabic(item.reason ?? "لا توجد فرصة حالياً"), systemImage: "pause.circle")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+
+                Divider().opacity(0.5)
+
+                if item.state == "signal" {
+                    HStack {
+                        Label(
+                            item.side == "BUY" ? "شراء" : "بيع",
+                            systemImage: item.side == "BUY" ? "arrow.up.right" : "arrow.down.right"
+                        )
+                        .font(.headline)
+                        .foregroundStyle(item.side == "BUY" ? .green : .red)
+
+                        Spacer()
+
+                        if let confidence = item.confidence {
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("\(Int(confidence))%")
+                                    .font(.headline.monospacedDigit())
+                                Text("ثقة")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    if let strategy = item.strategy {
+                        explanationRow("الاستراتيجية", arabic(strategy), "brain.head.profile")
+                    }
+                } else {
+                    explanationRow(
+                        "القرار",
+                        arabic(item.reason ?? "لا توجد فرصة حالياً"),
+                        "pause.circle.fill"
+                    )
+                }
+
+                Text("آخر تحديث: \(Date(timeIntervalSince1970: item.updatedAt), style: .time)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
-        .padding(.vertical, 6)
+    }
+
+    private var stateBadge: some View {
+        let signal = item.state == "signal"
+        return Text(signal ? "فرصة" : "انتظار")
+            .font(.caption.bold())
+            .foregroundStyle(signal ? Color.green : Color.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background((signal ? Color.green : Color.secondary).opacity(0.10), in: Capsule())
+    }
+
+    private func explanationRow(_ title: String, _ value: String, _ image: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: image)
+                .foregroundStyle(T4Palette.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+            }
+            Spacer()
+        }
     }
 
     private func arabic(_ raw: String) -> String {
         let map = [
-            "TREND": "اتجاه", "NO_TRADE": "انتظار", "RANGE": "تذبذب",
+            "TREND": "اتجاه واضح",
+            "RANGE": "تذبذب جانبي",
+            "BREAKOUT": "اختراق",
+            "VOLATILE": "حركة قوية",
+            "MIXED": "سوق مختلط",
+            "UNKNOWN": "غير واضح",
+            "NO_TRADE": "لا توجد صفقة مناسبة",
             "trend_wait_pullback": "انتظار تصحيح مناسب",
             "waiting_live_momentum": "انتظار زخم مؤكد",
             "gold_wait_confirmation": "الذهب: انتظار تأكيد",
             "spread_spike": "السبريد مرتفع",
-            "insufficient_ticks": "بيانات السوق غير مكتملة"
+            "insufficient_ticks": "بيانات السوق غير مكتملة",
+            "stale_ticks": "السعر الحالي غير محدث"
         ]
         return map[raw] ?? raw.replacingOccurrences(of: "_", with: " ")
     }
