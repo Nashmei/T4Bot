@@ -226,13 +226,18 @@ private struct SymbolPickerView: View {\n    private let popularBases = ["XAUUSD
             : available.filter { $0.localizedCaseInsensitiveContains(query) }
 
         return source.sorted { lhs, rhs in
+            let lp = popularity(lhs), rp = popularity(rhs)
+            if lp != rp { return lp < rp }
             let leftSelected = selection.contains(lhs)
             let rightSelected = selection.contains(rhs)
-            if leftSelected != rightSelected {
-                return leftSelected && !rightSelected
-            }
+            if leftSelected != rightSelected { return leftSelected && !rightSelected }
             return lhs.localizedStandardCompare(rhs) == .orderedAscending
         }
+    }
+
+    private func popularity(_ symbol: String) -> Int {
+        let upper = symbol.uppercased()
+        return popularBases.firstIndex(where: { upper.contains($0) }) ?? 999
     }
 
     var body: some View {
