@@ -15,13 +15,26 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("الأزواج") {
+                Section {
+                    Picker("المظهر", selection: $appearance) {
+                        ForEach(AppAppearance.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("المظهر")
+                } footer: {
+                    Text("تلقائي يتبع إعداد الآيفون.")
+                }
+
+                Section {
                     Button {
                         showSymbolPicker = true
                         Task { await appModel.loadSymbols() }
                     } label: {
                         HStack {
-                            Label("اختيار الأزواج من MT5", systemImage: "list.bullet.rectangle")
+                            Label("اختيار الأسواق", systemImage: "chart.bar.xaxis")
                             Spacer()
                             Text("\(selectedSymbols.count)")
                                 .font(.subheadline.monospacedDigit())
@@ -32,106 +45,66 @@ struct SettingsView: View {
                     if !selectedSymbols.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(selectedSymbols.sorted(), id: \.self) { symbol in
+                                ForEach(selectedSymbols.sorted(), id: .self) { symbol in
                                     Text(symbol)
                                         .font(.caption.bold())
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
-                                        .background(.blue.opacity(0.12), in: Capsule())
+                                        .background(T4Palette.accent.opacity(0.12), in: Capsule())
                                 }
                             }
                         }
                     }
+                } header: {
+                    Text("الأسواق")
+                } footer: {
+                    Text("الأكثر تداولاً تظهر أولاً، والبحث يشمل بقية رموز MT5 المتاحة.")
                 }
 
                 Section("المخاطرة") {
-                    numericRow("المخاطرة %", value: $draft.riskPct)
-                    numericRow("الثقة %", value: $draft.minConfidence)
+                    numericRow("المخاطرة %", value: $draft.riskPct, help: "النسبة المستخدمة لحجم الصفقة.")
+                    numericRow("الثقة %", value: $draft.minConfidence, help: "أقل ثقة مطلوبة قبل السماح بالدخول.")
                     Stepper("حد المراكز: \(draft.maxPositions)", value: $draft.maxPositions, in: 1...10)
                     Stepper("حد الخسائر: \(draft.maxConsecutiveLosses)", value: $draft.maxConsecutiveLosses, in: 0...20)
-                    numericRow("حد Equity اليومي %", value: $draft.dailyLossLimitPct)
+                    numericRow("حد Equity اليومي %", value: $draft.dailyLossLimitPct, help: "يوقف الدخول عند بلوغ الحد.")
                 }
 
-                Section("إدارة AI • 0 = يقرر AI") {
-                    numericRow("R:R", value: $draft.rr)
-                    numericRow("SL Points", value: $draft.slPoints)
-                    numericRow("TP Points", value: $draft.tpPoints)
-                    numericRow("الحماية %", value: $draft.protectionPct)
-                    numericRow("Trailing Gap %", value: $draft.trailingGapPct)
-                    numericRow("المدة بالدقائق", value: $draft.maxTradeMinutes)
+                Section {
+                    numericRow("R:R", value: $draft.rr, help: "0 = يحدده AI لكل صفقة.")
+                    numericRow("SL Points", value: $draft.slPoints, help: "0 = AI.")
+                    numericRow("TP Points", value: $draft.tpPoints, help: "0 = AI.")
+                    numericRow("الحماية %", value: $draft.protectionPct, help: "0 = AI.")
+                    numericRow("Trailing Gap %", value: $draft.trailingGapPct, help: "0 = AI.")
+                    numericRow("المدة بالدقائق", value: $draft.maxTradeMinutes, help: "0 = AI.")
 
-                    Button("إعادة الكل إلى AI") {
+                    Button {
                         draft.rr = 0
                         draft.slPoints = 0
                         draft.tpPoints = 0
                         draft.protectionPct = 0
                         draft.trailingGapPct = 0
                         draft.maxTradeMinutes = 0
+                    } label: {
+                        Label("إرجاع إدارة الصفقة إلى AI", systemImage: "brain.head.profile")
                     }
-                    .foregroundStyle(.tint)
-
-                    Text("القيمة 0 تعني أن AI يحدد الإعداد لكل صفقة. أي قيمة موجبة تصبح Manual Override.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("إدارة AI")
+                } footer: {
+                    Text("القيمة 0 تعني أن AI يقرر الإعداد حسب كل فرصة. أي قيمة موجبة تصبح Override يدوي.")
                 }
 
                 Section("الإشعارات") {
-                    Toggle("الجزيرة التفاعلية / Live Activity", isOn: $notificationManager.inAppEnabled)
+                    Toggle("Live Activity", isOn: $notificationManager.inAppEnabled)
                     Toggle("إشعار iOS محلي", isOn: $notificationManager.outsideEnabled)
-
                     Toggle("فتح صفقة", isOn: $notificationManager.tradeOpened)
-                    Toggle("إغلاق ونتيجة الصفقة", isOn: $notificationManager.tradeClosed)
+                    Toggle("إغلاق الصفقة", isOn: $notificationManager.tradeClosed)
                     Toggle("حماية الربح", isOn: $notificationManager.profitProtection)
 
-                    LabeledContent("Live Activities") {
-                        Label(
-                            notificationManager.liveActivitiesEnabled ? "متاحة" : "غير متاحة",
-                            systemImage: notificationManager.liveActivitiesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
-                        )
-                        .foregroundStyle(notificationManager.liveActivitiesEnabled ? Color.green : Color.red)
-                    }
-
-                    LabeledContent("إشعارات iOS") {
-                        Text(notificationManager.authorizationStatusText)
-                            .font(.caption)
-                            .foregroundStyle(notificationManager.authorizationGranted ? Color.green : Color.secondary)
-                    }
-
-                    LabeledContent("المصدر") {
-                        Text("WebSocket → الجهاز")
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-
                     Button {
-                        Task {
-                            await notificationManager.requestAuthorization()
-                        }
+                        Task { await notificationManager.requestAuthorization() }
                     } label: {
                         Label("تفعيل صلاحية الإشعارات", systemImage: "bell.badge.fill")
                     }
-
-                    Button {
-                        Task {
-                            appModel.operationMessage = await notificationManager.testLiveActivity(
-                                account: appModel.snapshot?.account
-                            )
-                        }
-                    } label: {
-                        Label("اختبار الجزيرة التفاعلية", systemImage: "waveform.path.ecg")
-                    }
-
-                    Button {
-                        Task {
-                            appModel.operationMessage = await notificationManager.testLocalNotification()
-                        }
-                    } label: {
-                        Label("اختبار إشعار iOS المحلي", systemImage: "bell.and.waves.left.and.right.fill")
-                    }
-
-                    Text("Mtbot يرسل حدث الصفقة عبر WebSocket فقط، وT4Bot يصنع الإشعار محلياً على الآيفون. لا نستخدم APNs Provider. إذا علّق iOS التطبيق بالكامل في الخلفية فلن يصل حدث WebSocket حتى يعود التطبيق للعمل.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section {
@@ -144,27 +117,20 @@ struct SettingsView: View {
                             hasLocalEdits = false
                         }
                     } label: {
-                        Label("حفظ على Mtbot", systemImage: "checkmark.circle.fill")
+                        Label("حفظ الإعدادات", systemImage: "checkmark.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .disabled(appModel.isPerformingCommand || selectedSymbols.isEmpty)
                 }
-
-                Section {
-                    Text("القائمة تأتي مباشرة من MT5. الأكثر تداولاً تظهر أولاً، ويمكن البحث في بقية رموز البروكر.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
             }
+            .t4ListBackground()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("الإعدادات")
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("تم") {
-                        numericFieldFocused = false
-                    }
-                    .fontWeight(.semibold)
+                    Button("تم") { numericFieldFocused = false }
+                        .fontWeight(.semibold)
                 }
             }
             .onAppear {
@@ -174,17 +140,10 @@ struct SettingsView: View {
                     await notificationManager.refreshAuthorizationStatus()
                 }
             }
-            .onChange(of: appModel.snapshot) { _, _ in
-                loadSnapshot(force: false)
-            }
-            .onChange(of: draft) { _, _ in
-                hasLocalEdits = true
-            }
+            .onChange(of: appModel.snapshot) { _, _ in loadSnapshot(force: false) }
+            .onChange(of: draft) { _, _ in hasLocalEdits = true }
             .sheet(isPresented: $showSymbolPicker) {
-                SymbolPickerView(
-                    available: appModel.availableSymbols,
-                    selection: $selectedSymbols
-                )
+                SymbolPickerView(available: appModel.availableSymbols, selection: $selectedSymbols)
             }
             .loadingOverlay(appModel.isPerformingCommand)
         }
@@ -193,7 +152,6 @@ struct SettingsView: View {
     private func loadSnapshot(force: Bool) {
         guard let snapshot = appModel.snapshot else { return }
         let account = snapshot.account?.login
-
         guard force || loadedAccount != account || !hasLocalEdits else { return }
 
         draft = snapshot.settings
@@ -203,38 +161,53 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func numericRow(_ title: String, value: Binding<Double>) -> some View {
-        LabeledContent(title) {
-            TextField(title, value: value, format: .number.precision(.fractionLength(0...2)))
-                .multilineTextAlignment(.trailing)
-                .keyboardType(.decimalPad)
-                .focused($numericFieldFocused)
-                .frame(maxWidth: 110)
+    private func numericRow(_ title: String, value: Binding<Double>, help: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(title) {
+                TextField(title, value: value, format: .number.precision(.fractionLength(0...2)))
+                    .multilineTextAlignment(.trailing)
+                    .keyboardType(.decimalPad)
+                    .focused($numericFieldFocused)
+                    .frame(maxWidth: 110)
+            }
+
+            Text(help)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 }
 
 private struct SymbolPickerView: View {
-    private let popularBases = ["XAUUSD","EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD","EURJPY","GBPJPY","EURGBP","XAGUSD"]
+    private let popularBases = [
+        "XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
+        "USDCHF", "NZDUSD", "EURJPY", "GBPJPY", "EURGBP", "XAGUSD"
+    ]
+
     let available: [String]
     @Binding var selection: Set<String>
 
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
 
-    private var filtered: [String] {
-        let source = query.isEmpty
-            ? available
-            : available.filter { $0.localizedCaseInsensitiveContains(query) }
+    private var searched: [String] {
+        query.isEmpty ? available : available.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
 
-        return source.sorted { lhs, rhs in
-            let lp = popularity(lhs), rp = popularity(rhs)
-            if lp != rp { return lp < rp }
-            let leftSelected = selection.contains(lhs)
-            let rightSelected = selection.contains(rhs)
-            if leftSelected != rightSelected { return leftSelected && !rightSelected }
-            return lhs.localizedStandardCompare(rhs) == .orderedAscending
-        }
+    private var popular: [String] {
+        searched
+            .filter { popularity($0) < 999 }
+            .sorted {
+                let lhs = popularity($0), rhs = popularity($1)
+                if lhs != rhs { return lhs < rhs }
+                return $0.localizedStandardCompare($1) == .orderedAscending
+            }
+    }
+
+    private var other: [String] {
+        searched
+            .filter { popularity($0) == 999 }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
     private func popularity(_ symbol: String) -> Int {
@@ -247,8 +220,8 @@ private struct SymbolPickerView: View {
             List {
                 Section {
                     HStack {
-                        Button("تحديد الكل") {
-                            selection = Set(available)
+                        Button("تحديد الظاهر") {
+                            selection.formUnion(searched)
                         }
                         Spacer()
                         Text("\(selection.count) مختار")
@@ -261,35 +234,49 @@ private struct SymbolPickerView: View {
                     }
                 }
 
-                Section(query.isEmpty ? "الأكثر تداولاً ثم بقية رموز MT5" : "نتائج البحث") {
-                    ForEach(filtered, id: \.self) { symbol in
-                        Button {
-                            if selection.contains(symbol) {
-                                selection.remove(symbol)
-                            } else {
-                                selection.insert(symbol)
-                            }
-                        } label: {
-                            HStack {
-                                Text(symbol)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                if selection.contains(symbol) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.blue)
-                                }
-                            }
+                if !popular.isEmpty {
+                    Section("الأكثر تداولاً") {
+                        ForEach(popular, id: \.self) { symbol in
+                            symbolRow(symbol)
+                        }
+                    }
+                }
+
+                if !other.isEmpty {
+                    Section("بقية الأسواق") {
+                        ForEach(other, id: \.self) { symbol in
+                            symbolRow(symbol)
                         }
                     }
                 }
             }
+            .t4ListBackground()
             .searchable(text: $query, prompt: "ابحث في رموز MT5")
-            .navigationTitle("أزواج MT5")
+            .navigationTitle("الأسواق")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("تم") { dismiss() }
                 }
+            }
+        }
+    }
+
+    private func symbolRow(_ symbol: String) -> some View {
+        Button {
+            if selection.contains(symbol) {
+                selection.remove(symbol)
+            } else {
+                selection.insert(symbol)
+            }
+        } label: {
+            HStack {
+                Text(symbol)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: selection.contains(symbol) ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selection.contains(symbol) ? T4Palette.accent : .secondary)
             }
         }
     }
