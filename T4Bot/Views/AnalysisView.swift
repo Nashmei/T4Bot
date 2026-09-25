@@ -51,7 +51,7 @@ private struct AnalysisRow: View {
                 Text(item.symbol)
                     .font(.headline)
                 Spacer()
-                Text(item.regime)
+                Text(arabic(item.regime))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
@@ -74,7 +74,7 @@ private struct AnalysisRow: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Label(item.reason ?? "لا توجد فرصة حالياً", systemImage: "pause.circle")
+                Label(arabic(item.reason ?? "لا توجد فرصة حالياً"), systemImage: "pause.circle")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
