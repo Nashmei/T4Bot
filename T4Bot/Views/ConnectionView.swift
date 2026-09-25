@@ -3,73 +3,113 @@ import SwiftUI
 struct ConnectionView: View {
     @EnvironmentObject private var connectionStore: ConnectionStore
     @EnvironmentObject private var appModel: AppModel
+    @FocusState private var passwordFocused: Bool
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.largeTitle)
+            VStack(spacing: 0) {
+                Spacer()
+
+                VStack(spacing: 18) {
+                    ZStack {
+                        Circle()
+                            .fill(.tint.opacity(0.12))
+                            .frame(width: 82, height: 82)
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 34, weight: .semibold))
                             .foregroundStyle(.tint)
+                    }
 
-                        Text("اتصال T4Bot")
-                            .font(.title2.bold())
-
-                        Text("يتصل التطبيق بمحرك Mtbot عبر HTTPS فقط. لا تحفظ بيانات MT5 داخل التطبيق.")
+                    VStack(spacing: 6) {
+                        Text("T4Bot")
+                            .font(.largeTitle.bold())
+                        Text("لوحة التحكم الرسمية لـ Mtbot")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 8)
                 }
 
-                Section("الخادم") {
-                    TextField("https://bot.example.com", text: $connectionStore.baseURLString)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
+                Spacer().frame(height: 42)
 
-                    SecureField("رمز CONTROL_API_TOKEN", text: $connectionStore.token)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
+                VStack(spacing: 14) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "server.rack")
+                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("الخادم")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(connectionStore.serverDisplayName)
+                                .font(.subheadline.monospaced())
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Image(systemName: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                    .padding(14)
+                    .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
 
-                if let validationMessage = connectionStore.validationMessage {
-                    Section {
-                        Text(validationMessage)
+                    SecureField("كلمة المرور", text: $connectionStore.password)
+                        .textContentType(.password)
+                        .submitLabel(.go)
+                        .focused($passwordFocused)
+                        .padding(14)
+                        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                        .onSubmit { login() }
+
+                    if let message = connectionStore.validationMessage {
+                        Text(message)
+                            .font(.footnote)
                             .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                }
 
-                Section {
-                    Button {
-                        guard let configuration = connectionStore.candidateConfiguration else {
-                            connectionStore.validationMessage = "استخدم رابط HTTPS صالحاً وأدخل رمز الوصول."
-                            return
-                        }
-
-                        Task {
-                            guard await appModel.validateConnection(using: configuration) else {
-                                connectionStore.validationMessage = "تعذر التحقق من الاتصال أو رمز الوصول."
-                                return
+                    Button(action: login) {
+                        HStack {
+                            if appModel.isPerformingCommand {
+                                ProgressView().controlSize(.small)
                             }
-
-                            guard connectionStore.save() else { return }
-                            appModel.connect(using: configuration)
+                            Text("تسجيل الدخول")
+                                .fontWeight(.semibold)
                         }
-                    } label: {
-                        Label("اتصال آمن", systemImage: "network.badge.shield.half.filled")
-                            .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
                     }
-                    .disabled(appModel.isPerformingCommand)
-                }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(appModel.isPerformingCommand || connectionStore.password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                Section {
-                    Text("رمز الوصول يُحفظ في iOS Keychain. التطبيق يرفض HTTP غير المشفر.")
-                        .font(.footnote)
+                    Text("الاتصال مشفّر عبر HTTPS. تحفظ بيانات الدخول في iOS Keychain فقط.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
+                .padding(.horizontal, 24)
+
+                Spacer()
+                Spacer()
             }
-            .navigationTitle("T4Bot")
+            .navigationBarHidden(true)
+        }
+    }
+
+    private func login() {
+        passwordFocused = false
+
+        guard let configuration = connectionStore.candidateConfiguration else {
+            connectionStore.validationMessage = "أدخل كلمة المرور."
+            return
+        }
+
+        Task {
+            guard await appModel.validateConnection(using: configuration) else {
+                connectionStore.validationMessage = "كلمة المرور غير صحيحة أو الخادم غير متاح."
+                return
+            }
+
+            guard connectionStore.save() else { return }
+            appModel.connect(using: configuration)
         }
     }
 }
