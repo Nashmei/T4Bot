@@ -19,7 +19,7 @@ struct PositionsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            ZStack {\n                AppBackdrop()\n                VStack(spacing: 0) {
                 Picker("الصفقات", selection: $selection) {
                     Text("مفتوحة \(appModel.snapshot?.positions.count ?? 0)")
                         .tag(Segment.open)
@@ -40,7 +40,7 @@ struct PositionsView: View {
                     }
                 }
             }
-            .navigationTitle("الصفقات")
+                }\n            }\n            .navigationTitle("الصفقات")
             .refreshable {
                 await appModel.refresh(silent: true)
                 await appModel.loadHistory(silent: true)
@@ -70,7 +70,7 @@ struct PositionsView: View {
                     PositionRow(position: position, currency: currency)
                 }
             }
-            .listStyle(.plain)
+            .listStyle(.plain)\n            .t4ListBackground()
         } else {
             ContentUnavailableView(
                 "لا توجد مراكز مفتوحة",
@@ -136,7 +136,7 @@ struct PositionsView: View {
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.insetGrouped)\n            .t4ListBackground()
         }
     }
 
@@ -177,7 +177,7 @@ private struct HistoryMetric: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))\n        .overlay { RoundedRectangle(cornerRadius: 16).stroke(.primary.opacity(0.06), lineWidth: 0.5) }
     }
 }
 
