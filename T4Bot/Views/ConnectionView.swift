@@ -32,26 +32,7 @@ struct ConnectionView: View {
                 Spacer().frame(height: 42)
 
                 VStack(spacing: 14) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "server.rack")
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("الخادم")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(connectionStore.serverDisplayName)
-                                .font(.subheadline.monospaced())
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        Image(systemName: "lock.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    }
-                    .padding(14)
-                    .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-
-                    SecureField("كلمة المرور", text: $connectionStore.password)
+                    HStack(spacing: 8) {\n                        Image(systemName: "bolt.horizontal.circle.fill")\n                            .foregroundStyle(.green)\n                        Text("اتصال آمن ومباشر")\n                            .font(.subheadline.weight(.medium))\n                        Spacer()\n                        Text("LIVE")\n                            .font(.caption2.bold())\n                            .foregroundStyle(.green)\n                    }\n                    .padding(14)\n                    .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))\n\n                    SecureField("كلمة المرور", text: $connectionStore.password)
                         .textContentType(.password)
                         .submitLabel(.go)
                         .focused($passwordFocused)
