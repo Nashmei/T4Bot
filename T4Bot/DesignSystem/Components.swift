@@ -7,7 +7,7 @@ struct SurfaceCard<Content: View>: View {
         content
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: T4Style.corner, style: .continuous))\n            .overlay { RoundedRectangle(cornerRadius: T4Style.corner, style: .continuous).stroke(.primary.opacity(0.06), lineWidth: 0.5) }
     }
 }
 
