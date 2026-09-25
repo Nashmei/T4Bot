@@ -1,19 +1,7 @@
 import SwiftUI
-import UIKit
-
-final class T4BotAppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        Task { @MainActor in APNsDiagnostics.shared.registered(deviceToken) }
-    }
-
-    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        Task { @MainActor in APNsDiagnostics.shared.failed(error) }
-    }
-}
 
 @main
 struct T4BotApp: App {
-    @UIApplicationDelegateAdaptor(T4BotAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var connectionStore = ConnectionStore()
     @StateObject private var appModel = AppModel()
@@ -33,9 +21,12 @@ struct T4BotApp: App {
                 }
                 .onChange(of: scenePhase) { _, phase in
                     switch phase {
-                    case .active: appModel.sceneBecameActive()
-                    case .inactive, .background: appModel.sceneBecameInactive()
-                    @unknown default: break
+                    case .active:
+                        appModel.sceneBecameActive()
+                    case .inactive, .background:
+                        appModel.sceneBecameInactive()
+                    @unknown default:
+                        break
                     }
                 }
         }
