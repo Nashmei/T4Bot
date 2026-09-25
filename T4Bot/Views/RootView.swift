@@ -12,6 +12,7 @@ struct RootView: View {
                 ConnectionView()
             }
         }
+        .tint(T4Palette.accent)
         .overlay(alignment: .top) {
             if let message = appModel.operationMessage {
                 HStack(spacing: 8) {
@@ -34,7 +35,7 @@ struct RootView: View {
         .animation(.snappy, value: appModel.operationMessage)
         .task(id: appModel.operationMessage) {
             guard let message = appModel.operationMessage else { return }
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(2))
             if appModel.operationMessage == message {
                 appModel.operationMessage = nil
             }
@@ -59,19 +60,19 @@ private struct MainTabView: View {
     var body: some View {
         TabView {
             DashboardView()
-                .tabItem { Label("الرئيسية", systemImage: "gauge.with.dots.needle.67percent") }
+                .tabItem { Label("الرئيسية", systemImage: "house.fill") }
 
             AnalysisView()
-                .tabItem { Label("التحليل", systemImage: "waveform.path.ecg") }
+                .tabItem { Label("التحليل", systemImage: "sparkles") }
 
             PositionsView()
-                .tabItem { Label("الصفقات", systemImage: "list.bullet.rectangle.portrait") }
+                .tabItem { Label("الصفقات", systemImage: "chart.line.uptrend.xyaxis") }
 
             SettingsView()
                 .tabItem { Label("الإعدادات", systemImage: "slider.horizontal.3") }
 
             AccountView()
-                .tabItem { Label("الحساب", systemImage: "person.crop.circle") }
+                .tabItem { Label("الحساب", systemImage: "person.crop.circle.fill") }
         }
     }
 }
