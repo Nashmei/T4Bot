@@ -215,6 +215,14 @@ final class AppModel: ObservableObject {
         await performCommand { try await client.stopEngine(using: $0) }
     }
 
+    func activateLive() async {
+        await performCommand { try await client.activateLive(using: $0) }
+    }
+
+    func lockLive() async {
+        await performCommand { try await client.lockLive(using: $0) }
+    }
+
     func runAnalysis() async {
         guard let configuration else { return }
         isPerformingCommand = true
