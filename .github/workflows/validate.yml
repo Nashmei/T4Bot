@@ -2,6 +2,8 @@ name: Validate iOS
 
 on:
   workflow_dispatch:
+  push:
+    branches: [AI]
 
 concurrency:
   group: validate-ios-${{ github.ref }}
