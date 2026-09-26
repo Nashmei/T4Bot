@@ -29,6 +29,19 @@ actor APIClient {
         try await request(path: "/v1/engine/stop", method: "POST", configuration: configuration)
     }
 
+    func activateLive(using configuration: APIConfiguration) async throws -> CommandResponse {
+        try await request(
+            path: "/v1/live/activate",
+            method: "POST",
+            body: LiveActivationRequest(confirmation: "تفعيل التداول الحقيقي"),
+            configuration: configuration
+        )
+    }
+
+    func lockLive(using configuration: APIConfiguration) async throws -> CommandResponse {
+        try await request(path: "/v1/live/lock", method: "POST", configuration: configuration)
+    }
+
     func runAnalysis(using configuration: APIConfiguration) async throws -> [AnalysisSnapshot] {
         try await request(path: "/v1/analysis/run", method: "POST", configuration: configuration)
     }
