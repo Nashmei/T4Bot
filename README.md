@@ -1,6 +1,6 @@
 # T4Bot
 
-T4Bot is the native iOS control surface for the private **Mtbot** DEMO trading engine.
+T4Bot is the native iOS control surface for the private **Mtbot** trading engine.
 
 The iPhone app is intentionally a **thin client**. It does not contain trading strategies, MetaTrader credentials, risk logic, order execution code, or broker connectivity. Those responsibilities remain on the Mtbot server.
 
@@ -17,7 +17,7 @@ Mtbot Control API (server)
    ├─ Analyzer / Risk
    ├─ MT5Gateway
    ├─ SQLite settings + audit
-   └─ MetaTrader 5 (DEMO)
+   └─ MetaTrader 5 (Demo or Real)
 ```
 
 The API contract is versioned under `/v1`. T4Bot never writes directly to `storage/bot.db` and never talks to MetaTrader 5 directly.
@@ -73,4 +73,4 @@ A normal install on a non-jailbroken iPhone still requires valid Apple signing. 
 
 T4Bot targets the Mtbot control API introduced on the companion Mtbot feature branch. Trading logic and risk behavior remain server-owned and unchanged by the iOS client.
 
-**Current scope: DEMO only.**
+**Current scope:** MT5 Demo and Real accounts. Real accounts can be linked for monitoring while order execution remains locked until a separate explicit Live activation. Live is re-locked on account changes and server restarts.
