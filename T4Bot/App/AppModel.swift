@@ -55,7 +55,7 @@ final class AppModel: ObservableObject {
         startFallbackRefresh()
 
         Task {
-            await refreshSupportingData(silent: true)
+            await loadHistory(silent: true)
             await notifications.requestAuthorization()
         }
     }
@@ -108,7 +108,7 @@ final class AppModel: ObservableObject {
 
         Task {
             await refresh(silent: true)
-            await refreshSupportingData(silent: true)
+            await loadHistory(silent: true)
         }
     }
 
@@ -133,13 +133,12 @@ final class AppModel: ObservableObject {
 
     func refreshSupportingData(silent: Bool = false) async {
         await loadHistory(silent: silent)
-        await loadSymbols(silent: silent)
     }
 
     func loadHistory(silent: Bool = false) async {
         guard let configuration else { return }
         do {
-            tradeHistory = try await client.tradeHistory(using: configuration)
+            tradeHistory = try await client.tradeHistory(limit: 50, using: configuration)
         } catch {
             if !silent && isAppActive { errorMessage = localized(error) }
         }
@@ -205,7 +204,6 @@ final class AppModel: ObservableObject {
             _ = try await client.updateSymbols(symbols, using: configuration)
             operationMessage = "تم تحديث الأسواق."
             await refresh(silent: true)
-            await loadSymbols(silent: true)
         } catch {
             errorMessage = localized(error)
         }
@@ -226,7 +224,7 @@ final class AppModel: ObservableObject {
 
             operationMessage = response.message
             await refresh(silent: true)
-            await refreshSupportingData(silent: true)
+            await loadHistory(silent: true)
             return response.ok
         } catch {
             errorMessage = localized(error)

@@ -56,7 +56,7 @@ actor APIClient {
     }
 
     func tradeHistory(limit: Int = 100, using configuration: APIConfiguration) async throws -> [ClosedTrade] {
-        try await request(path: "/v1/trades/history", method: "GET", configuration: configuration)
+        try await request(path: "/v1/trades/history?limit=\(max(1, min(limit, 500)))", method: "GET", configuration: configuration)
     }
 
     func tradeImage(mediaID: String, using configuration: APIConfiguration) async throws -> Data {

@@ -14,11 +14,13 @@ struct APIConfiguration: Equatable, Sendable {
     }
 
     func url(path: String) -> URL {
-        path
-            .split(separator: "/")
-            .reduce(baseURL) { partial, component in
-                partial.appendingPathComponent(String(component))
-            }
+        let parts = path.split(separator: "?", maxSplits: 1).map(String.init)
+        let route = parts[0].split(separator: "/").reduce(baseURL) { partial, component in
+            partial.appendingPathComponent(String(component))
+        }
+        guard parts.count == 2, var components = URLComponents(url: route, resolvingAgainstBaseURL: false) else { return route }
+        components.percentEncodedQuery = parts[1]
+        return components.url ?? route
     }
 
     func webSocketRequest(path: String) -> URLRequest? {

@@ -4,6 +4,9 @@ import UIKit
 struct PositionsView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var selection: Segment = .open
+    @State private var historyFilter: HistoryFilter = .recent
+
+    enum HistoryFilter: String, CaseIterable, Identifiable { case recent = "الأخيرة", wins = "الرابحة", losses = "الخاسرة"; var id: String { rawValue } }
 
     enum Segment: String, CaseIterable, Identifiable {
         case open = "مفتوحة"
@@ -14,6 +17,17 @@ struct PositionsView: View {
     private var currency: String {
         let value = appModel.snapshot?.account?.currency ?? "USD"
         return value.isEmpty ? "USD" : value
+    }
+
+
+
+    private var filteredHistory: [ClosedTrade] {
+        let latest = Array(appModel.tradeHistory.sorted { $0.closedAt > $1.closedAt }.prefix(50))
+        switch historyFilter {
+        case .recent: return latest
+        case .wins: return latest.filter { $0.pnl > 0 }
+        case .losses: return latest.filter { $0.pnl < 0 }
+        }
     }
 
     var body: some View {
@@ -117,8 +131,13 @@ struct PositionsView: View {
                     .listRowBackground(Color.clear)
                 }
 
-                Section("آخر الصفقات") {
-                    ForEach(appModel.tradeHistory) { trade in
+                Section {
+                    Picker("فلترة السجل", selection: $historyFilter) { ForEach(HistoryFilter.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
+                        .listRowBackground(Color.clear)
+                }
+
+                Section("آخر 50 صفقة") {
+                    ForEach(filteredHistory) { trade in
                         NavigationLink {
                             TradeDetailView(
                                 title: "\(trade.symbol) • \(trade.side)",
