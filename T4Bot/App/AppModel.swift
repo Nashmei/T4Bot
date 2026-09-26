@@ -268,6 +268,8 @@ final class AppModel: ObservableObject {
         defer { isPerformingCommand = false }
 
         do {
+            // Never leave the previous MT5 account's history visible while switching accounts.
+            tradeHistory = []
             let response = try await client.login(
                 server: server,
                 login: login,

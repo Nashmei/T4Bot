@@ -53,7 +53,7 @@ private struct RiskSettingsView: View {
                 number("حد ربح الجلسة $","session",$draft.sessionProfitLimit,"يُحسب من Balance المحقق بعد إغلاق الصفقات. 0 = بدون حد.")
             }
             Section { Button { focused=nil; Task{await appModel.update(settings:draft)} } label:{ Label("حفظ التغييرات",systemImage:"checkmark.circle.fill").frame(maxWidth:.infinity) }.disabled(appModel.isPerformingCommand) }
-        }.t4ListBackground().scrollDismissesKeyboard(.interactively).navigationTitle("المخاطرة والحدود").navigationBarTitleDisplayMode(.inline).onAppear{draft=appModel.snapshot?.settings ?? .defaults}
+        }.t4ListBackground().scrollDismissesKeyboard(.interactively).navigationTitle("المخاطرة والحدود").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItemGroup(placement:.keyboard){Spacer();Button("تم"){focused=nil}.fontWeight(.semibold)}}.onAppear{draft=appModel.snapshot?.settings ?? .defaults}
     }
     @ViewBuilder private func number(_ title:String,_ key:String,_ value:Binding<Double>,_ help:String)->some View {
         VStack(alignment:.leading,spacing:5) { HStack { Text(title); Spacer(); TextField("0",value:value,format:.number.precision(.fractionLength(0...2))).multilineTextAlignment(.trailing).keyboardType(.numbersAndPunctuation).submitLabel(.done).focused($focused,equals:key).onSubmit{focused=nil}.frame(width:105) }; Text(help).font(.caption2).foregroundStyle(.secondary) }
@@ -71,7 +71,7 @@ private struct TradeManagementSettingsView: View {
             } footer:{Text("القيمة 0 تعني أن AI يدير هذا الجزء تلقائياً.")}
             Section { Button("إرجاع إدارة الصفقة إلى AI") { draft.rr=0; draft.slPoints=0; draft.tpPoints=0; draft.protectionPct=0; draft.trailingGapPct=0; draft.maxTradeMinutes=0 } }
             Section { Button { focused=nil; Task{await appModel.update(settings:draft)} } label:{ Label("حفظ التغييرات",systemImage:"checkmark.circle.fill").frame(maxWidth:.infinity) }.disabled(appModel.isPerformingCommand) }
-        }.t4ListBackground().scrollDismissesKeyboard(.interactively).navigationTitle("إدارة الصفقة").navigationBarTitleDisplayMode(.inline).onAppear{draft=appModel.snapshot?.settings ?? .defaults}
+        }.t4ListBackground().scrollDismissesKeyboard(.interactively).navigationTitle("إدارة الصفقة").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItemGroup(placement:.keyboard){Spacer();Button("تم"){focused=nil}.fontWeight(.semibold)}}.onAppear{draft=appModel.snapshot?.settings ?? .defaults}
     }
     @ViewBuilder private func number(_ title:String,_ key:String,_ value:Binding<Double>,_ help:String)->some View {
         VStack(alignment:.leading,spacing:5) { HStack { Text(title); Spacer(); TextField("0",value:value,format:.number.precision(.fractionLength(0...2))).multilineTextAlignment(.trailing).keyboardType(.numbersAndPunctuation).submitLabel(.done).focused($focused,equals:key).onSubmit{focused=nil}.frame(width:105) }; Text(help).font(.caption2).foregroundStyle(.secondary) }

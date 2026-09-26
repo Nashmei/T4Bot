@@ -103,9 +103,15 @@ private struct MT5LoginView:View {
                     }.padding(18)
                 }
             }.navigationTitle("ربط MT5").navigationBarTitleDisplayMode(.inline)
-            .toolbar{ToolbarItem(placement:.cancellationAction){Button("إلغاء"){password="";dismiss()}}}
+            .toolbar{
+                ToolbarItem(placement:.cancellationAction){Button("إلغاء"){password="";dismiss()}}
+                ToolbarItemGroup(placement:.keyboard){Spacer();Button("تم"){hideKeyboard()}.fontWeight(.semibold)}
+            }
             .loadingOverlay(appModel.isPerformingCommand)
         }
+    }
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),to:nil,from:nil,for:nil)
     }
     private func field<C:View>(_ title:String,_ icon:String,@ViewBuilder content:()->C)->some View {
         VStack(alignment:.leading,spacing:7){Label(title,systemImage:icon).font(.caption.bold()).foregroundStyle(.secondary);content().padding(13).background(.primary.opacity(0.045),in:RoundedRectangle(cornerRadius:14))}
