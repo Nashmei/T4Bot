@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
     private var fallbackTask: Task<Void, Never>?
     private var reconnectIndicatorTask: Task<Void, Never>?
     private var isAppActive = true
+    private var lastFallbackAttempt = Date.distantPast
 
     func validateConnection(using configuration: APIConfiguration) async -> Bool {
         isPerformingCommand = true
@@ -268,18 +269,15 @@ final class AppModel: ObservableObject {
 
         fallbackTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(250))
+                try? await Task.sleep(for: .seconds(1))
                 guard let self else { return }
 
-                guard let lastUpdated = self.lastUpdated else {
-                    await self.refresh(silent: true)
-                    continue
-                }
+                let stale = self.lastUpdated.map { Date().timeIntervalSince($0) > 3.0 } ?? true
+                guard stale, Date().timeIntervalSince(self.lastFallbackAttempt) >= 3.0 else { continue }
 
-                if Date().timeIntervalSince(lastUpdated) > 1.0 {
-                    self.connectionState = .reconnecting
-                    await self.refresh(silent: true)
-                }
+                self.lastFallbackAttempt = Date()
+                self.connectionState = .reconnecting
+                await self.refresh(silent: true)
             }
         }
     }
