@@ -84,7 +84,7 @@ struct DashboardView: View {
                     if s.engine.running { showStopConfirmation=true } else { Task { await appModel.startEngine() } }
                 } label: {
                     Label(s.engine.running ? "إيقاف المحرك" : "تشغيل المحرك", systemImage: s.engine.running ? "stop.fill" : "play.fill")
-                        .fontWeight(.bold()).frame(maxWidth: .infinity).padding(.vertical, 9)
+                        .fontWeight(.bold).frame(maxWidth: .infinity).padding(.vertical, 9)
                 }.buttonStyle(.borderedProminent).tint(s.engine.running ? T4Palette.negative : T4Palette.accent)
             }
         }
