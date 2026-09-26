@@ -51,7 +51,8 @@ struct PerformanceView: View {
                                     resultRow("رابحة","\(wins.count)",T4Palette.positive)
                                     Divider()
                                     resultRow("خاسرة","\(losses.count)",T4Palette.negative)
-                                    Divider()                                    resultRow("إجمالي الأرباح",money(grossProfit),T4Palette.positive)
+                                    Divider()
+                                    resultRow("إجمالي الأرباح",money(grossProfit),T4Palette.positive)
                                     Divider()
                                     resultRow("إجمالي الخسائر",money(-grossLoss),T4Palette.negative)
                                 }
@@ -79,7 +80,8 @@ struct PerformanceView: View {
                                 }
                             }
                         }.padding(16)
-                    }                }.scrollIndicators(.hidden)
+                    }
+                }.scrollIndicators(.hidden)
             }
             .navigationTitle("الأداء")
             .navigationBarTitleDisplayMode(.inline)
@@ -110,7 +112,9 @@ struct PerformanceView: View {
             Spacer()
             Text(value).font(.subheadline.monospacedDigit().weight(.semibold)).foregroundStyle(tint)
         }
-    }    private func money(_ value:Double)->String {
+    }
+
+    private func money(_ value:Double)->String {
         value.formatted(.currency(code:currency).sign(strategy:.always()))
     }
 }
