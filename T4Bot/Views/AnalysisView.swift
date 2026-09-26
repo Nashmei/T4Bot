@@ -58,7 +58,7 @@ struct AnalysisView: View {
             .navigationTitle("التحليل").navigationBarTitleDisplayMode(.inline)
             .onAppear { selected=Set(appModel.snapshot?.settings.symbols ?? []) }
             .sheet(isPresented:$showPicker) {
-                AnalysisSymbolPicker(available:appModel.availableSymbols, initialSelection:selected) { saved in
+                AnalysisSymbolPicker(initialSelection:selected) { saved in
                     selected=saved
                     Task { await appModel.update(symbols:saved.sorted()) }
                 }
@@ -66,7 +66,7 @@ struct AnalysisView: View {
             .loadingOverlay(appModel.isPerformingCommand)
         }
     }
-    private func openPicker() { showPicker=true; Task { await appModel.loadSymbols() } }
+    private func openPicker() { showPicker=true }
 }
 
 private struct AnalysisCard:View {
@@ -93,34 +93,144 @@ private struct AnalysisCard:View {
 }
 
 private struct AnalysisSymbolPicker:View {
-    let available:[String]; let initialSelection:Set<String>; let onSave:(Set<String>)->Void
+    @EnvironmentObject private var appModel:AppModel
+    @Environment(\.dismiss) private var dismiss
+    let initialSelection:Set<String>
+    let onSave:(Set<String>)->Void
+
     @State private var selection:Set<String>
-    init(available:[String], initialSelection:Set<String>, onSave:@escaping(Set<String>)->Void) {
-        self.available=available; self.initialSelection=initialSelection; self.onSave=onSave
+    @State private var query=""
+    @State private var selectedExpanded=true
+    @State private var activeExpanded=false
+    @State private var allExpanded=false
+    @State private var searchTask:Task<Void,Never>?
+
+    init(initialSelection:Set<String>, onSave:@escaping(Set<String>)->Void) {
+        self.initialSelection=initialSelection
+        self.onSave=onSave
         _selection=State(initialValue:initialSelection)
     }
-    @Environment(\.dismiss) private var dismiss
-    @State private var query=""
-    private let popular=["XAUUSD","XAGUSD","EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD","EURJPY","GBPJPY","EURGBP"]
-    private var filtered:[String] {
-        let source=query.isEmpty ? available:available.filter{$0.localizedCaseInsensitiveContains(query)}
-        return source.sorted { a,b in
-            let ai=popular.firstIndex(where:{a.uppercased().contains($0)}) ?? 999
-            let bi=popular.firstIndex(where:{b.uppercased().contains($0)}) ?? 999
-            return ai == bi ? a.localizedStandardCompare(b) == .orderedAscending : ai < bi
-        }
+
+    private var selectedRows:[String] {
+        selection.sorted().filter{query.isEmpty || $0.localizedCaseInsensitiveContains(query)}
     }
+    private var activeRows:[String] {
+        appModel.activeSymbols.filter{query.isEmpty || $0.localizedCaseInsensitiveContains(query)}
+    }
+
     var body:some View {
         NavigationStack {
-            List(filtered,id:\.self) { x in
-                Button { if selection.contains(x){selection.remove(x)}else{selection.insert(x)} } label:{
-                    HStack { Text(x).foregroundStyle(.primary); Spacer(); Image(systemName:selection.contains(x) ? "checkmark.circle.fill":"circle").foregroundStyle(selection.contains(x) ? T4Palette.accent:.secondary) }
+            ScrollView {
+                LazyVStack(spacing:12) {
+                    symbolSection(
+                        title:"مختارة",
+                        count:selection.count,
+                        expanded:$selectedExpanded,
+                        rows:selectedRows
+                    )
+
+                    symbolSection(
+                        title:"نشط الآن",
+                        count:appModel.activeSymbols.count,
+                        expanded:$activeExpanded,
+                        rows:activeRows
+                    )
+
+                    DisclosureGroup(isExpanded:$allExpanded) {
+                        LazyVStack(spacing:0) {
+                            ForEach(appModel.availableSymbols,id:\.self){symbolRow($0)}
+                            if appModel.symbolsHasMore {
+                                Button {
+                                    Task{await appModel.loadMoreSymbols()}
+                                } label:{
+                                    HStack {
+                                        Spacer()
+                                        Label("تحميل المزيد",systemImage:"arrow.down.circle")
+                                        Spacer()
+                                    }
+                                    .padding(.vertical,14)
+                                }
+                            }
+                        }
+                    } label:{
+                        HStack {
+                            Text("الكل").font(.headline)
+                            Spacer()
+                            Text("\(appModel.symbolsTotal)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(16)
+                    .background(.background.opacity(0.92),in:RoundedRectangle(cornerRadius:20,style:.continuous))
                 }
-            }.searchable(text:$query,prompt:"ابحث في رموز MT5").navigationTitle("اختيار الأزواج")
+                .padding(16)
+            }
+            .background(AppBackdrop())
+            .searchable(text:$query,prompt:"ابحث بالرمز فقط")
+            .navigationTitle("اختيار الأزواج")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement:.cancellationAction){Button("إلغاء"){dismiss()}}
-                ToolbarItem(placement:.confirmationAction){Button("حفظ"){onSave(selection);dismiss()}.disabled(selection.isEmpty)}
+                ToolbarItem(placement:.confirmationAction){
+                    Button("حفظ"){
+                        onSave(selection)
+                        dismiss()
+                    }.disabled(selection.isEmpty)
+                }
+            }
+            .task {
+                await appModel.loadSymbols(silent:true,force:true,query:"")
+            }
+            .onChange(of:query){_,newValue in
+                searchTask?.cancel()
+                searchTask=Task {
+                    try? await Task.sleep(for:.milliseconds(300))
+                    guard !Task.isCancelled else{return}
+                    await appModel.loadSymbols(silent:true,force:true,query:newValue)
+                    if !newValue.isEmpty {allExpanded=true}
+                }
             }
         }
+    }
+
+    @ViewBuilder
+    private func symbolSection(
+        title:String,
+        count:Int,
+        expanded:Binding<Bool>,
+        rows:[String]
+    )->some View {
+        DisclosureGroup(isExpanded:expanded) {
+            LazyVStack(spacing:0) {
+                if rows.isEmpty {
+                    Text("لا توجد رموز").font(.caption).foregroundStyle(.secondary).padding(.vertical,12)
+                } else {
+                    ForEach(rows,id:\.self){symbolRow($0)}
+                }
+            }
+        } label:{
+            HStack {
+                Text(title).font(.headline)
+                Spacer()
+                Text("\(count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(.background.opacity(0.92),in:RoundedRectangle(cornerRadius:20,style:.continuous))
+    }
+
+    private func symbolRow(_ symbol:String)->some View {
+        Button {
+            if selection.contains(symbol){selection.remove(symbol)}
+            else{selection.insert(symbol)}
+        } label:{
+            HStack {
+                Text(symbol).font(.body.monospaced()).foregroundStyle(.primary)
+                Spacer()
+                Image(systemName:selection.contains(symbol) ? "checkmark.circle.fill":"circle")
+                    .foregroundStyle(selection.contains(symbol) ? T4Palette.accent:.secondary)
+            }
+            .padding(.vertical,11)
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct T4BotApp: App {
@@ -7,6 +8,17 @@ struct T4BotApp: App {
     @StateObject private var appModel = AppModel()
     @StateObject private var notificationManager = NotificationManager.shared
     @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
+
+    init() {
+        // Keep scrolling visually continuous with the page; no separator line appears
+        // when the navigation bar transitions between scroll-edge and compact states.
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.shadowColor = .clear
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+    }
 
     var body: some Scene {
         WindowGroup {

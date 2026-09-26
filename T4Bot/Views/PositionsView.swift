@@ -205,10 +205,17 @@ private struct HistoryMetric: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(selected ? T4Palette.accent : .primary.opacity(0.06), lineWidth: selected ? 2 : 0.5)
+        .background(
+            selected ? T4Palette.accent.opacity(0.07) : Color.primary.opacity(0.025),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .overlay(alignment:.bottom) {
+            if selected {
+                Capsule()
+                    .fill(T4Palette.accent)
+                    .frame(width:28,height:3)
+                    .padding(.bottom,5)
+            }
         }
         }.buttonStyle(.plain)
     }

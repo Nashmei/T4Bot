@@ -34,10 +34,26 @@ struct AccountView:View {
                             ContentUnavailableView("MT5 غير متصل",systemImage:"person.crop.circle.badge.exclamationmark",description:Text("اربط حساب MT5 للمتابعة.")).padding(.vertical,35)
                         }
                         SurfaceCard {
-                            VStack(spacing:12) {
-                                Button {showLogin=true} label:{Label("تغيير حساب MT5",systemImage:"person.badge.key").frame(maxWidth:.infinity)}
-                                    .buttonStyle(.borderedProminent).tint(T4Palette.accent).disabled(appModel.snapshot?.engine.running == true)
-                                Button("تسجيل الخروج من T4Bot",role:.destructive){showDisconnect=true}.frame(maxWidth:.infinity)
+                            VStack(spacing:0) {
+                                NavigationLink {
+                                    SettingsView()
+                                } label: {
+                                    HStack {
+                                        Label("إعدادات T4Bot",systemImage:"gearshape.fill")
+                                        Spacer()
+                                    }
+                                    .padding(.vertical,8)
+                                }
+                                Divider().padding(.vertical,6)
+                                Button {showLogin=true} label:{
+                                    Label("تغيير حساب MT5",systemImage:"person.badge.key").frame(maxWidth:.infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(T4Palette.accent)
+                                .disabled(appModel.snapshot?.engine.running == true)
+                                Button("تسجيل الخروج من T4Bot",role:.destructive){showDisconnect=true}
+                                    .frame(maxWidth:.infinity)
+                                    .padding(.top,10)
                             }
                         }
                     }.padding(16)

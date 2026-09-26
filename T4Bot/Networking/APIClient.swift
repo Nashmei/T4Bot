@@ -51,8 +51,15 @@ actor APIClient {
         )
     }
 
-    func symbols(using configuration: APIConfiguration) async throws -> SymbolsResponse {
-        try await request(path: "/v1/symbols", method: "GET", configuration: configuration)
+    func symbols(
+        query: String = "",
+        limit: Int = 200,
+        offset: Int = 0,
+        using configuration: APIConfiguration
+    ) async throws -> SymbolsResponse {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let path = "/v1/symbols?q=\(encoded)&limit=\(max(1,min(limit,500)))&offset=\(max(0,offset))"
+        return try await request(path: path, method: "GET", configuration: configuration)
     }
 
     func tradeHistory(limit: Int = 100, using configuration: APIConfiguration) async throws -> [ClosedTrade] {

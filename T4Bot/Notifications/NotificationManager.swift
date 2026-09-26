@@ -25,6 +25,9 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     @Published var profitProtection: Bool {
         didSet { UserDefaults.standard.set(profitProtection, forKey: "notifications.profitProtection") }
     }
+    @Published var sessionGoal: Bool {
+        didSet { UserDefaults.standard.set(sessionGoal, forKey: "notifications.sessionGoal") }
+    }
 
     private var activity: Activity<T4BotActivityAttributes>?
     private var activityDismissTask: Task<Void, Never>?
@@ -35,6 +38,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         tradeOpened = UserDefaults.standard.object(forKey: "notifications.tradeOpened") as? Bool ?? true
         tradeClosed = UserDefaults.standard.object(forKey: "notifications.tradeClosed") as? Bool ?? true
         profitProtection = UserDefaults.standard.object(forKey: "notifications.profitProtection") as? Bool ?? true
+        sessionGoal = UserDefaults.standard.object(forKey: "notifications.sessionGoal") as? Bool ?? true
         super.init()
 
         UNUserNotificationCenter.current().delegate = self
@@ -230,6 +234,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             }
         case .profitProtection:
             status = "protected"
+        case .sessionProfitLimit:
+            status = "profit"
         }
 
         let state = T4BotActivityAttributes.ContentState(
@@ -246,6 +252,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             relevanceScore = 100
         case .tradeOpened, .profitProtection:
             relevanceScore = 90
+        case .sessionProfitLimit:
+            relevanceScore = 100
         }
 
         let content = ActivityContent(
@@ -359,6 +367,19 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
                 pnl: nil,
                 ticket: ticket
             )
+
+        case .sessionProfitLimit:
+            let achieved = event.payload.double("trade_result")
+            let value = achieved.map { String(format: "%+.2f", $0) }
+            return TradeAlert(
+                kind: kind,
+                title: "T4Bot • تم تحقيق هدف الجلسة 💵",
+                message: value.map { "الربح المحقق \($0) • تم إيقاف التحليل والدخول الجديد." }
+                    ?? "تم تحقيق هدف الجلسة وإيقاف الدخول الجديد.",
+                symbol: "",
+                pnl: achieved,
+                ticket: nil
+            )
         }
     }
 
@@ -370,6 +391,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             return tradeClosed
         case .profitProtection:
             return profitProtection
+        case .sessionProfitLimit:
+            return sessionGoal
         }
     }
 
@@ -424,6 +447,7 @@ private enum TradeEventKind: String {
     case tradeOpened = "trade_opened"
     case tradeClosed = "trade_closed"
     case profitProtection = "profit_protection"
+    case sessionProfitLimit = "session_profit_limit"
 }
 
 private struct TradeAlert {

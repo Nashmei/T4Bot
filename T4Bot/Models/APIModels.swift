@@ -17,9 +17,31 @@ struct EngineSnapshot: Codable, Equatable, Sendable {
     let lastCycleAt: Double
     let trackedPositions: Int
     let maxPositions: Int
-    let sessionStartBalance: Double
-    let sessionProfit: Double
-    let sessionProfitHit: Bool
+    let sessionStartBalance: Double?
+    let sessionProfit: Double?
+    let sessionProfitHit: Bool?
+
+    init(
+        running: Bool,
+        scanCount: Int,
+        lastCycleSeconds: Double,
+        lastCycleAt: Double,
+        trackedPositions: Int,
+        maxPositions: Int,
+        sessionStartBalance: Double? = nil,
+        sessionProfit: Double? = nil,
+        sessionProfitHit: Bool? = nil
+    ) {
+        self.running = running
+        self.scanCount = scanCount
+        self.lastCycleSeconds = lastCycleSeconds
+        self.lastCycleAt = lastCycleAt
+        self.trackedPositions = trackedPositions
+        self.maxPositions = maxPositions
+        self.sessionStartBalance = sessionStartBalance
+        self.sessionProfit = sessionProfit
+        self.sessionProfitHit = sessionProfitHit
+    }
 }
 
 struct AccountSnapshot: Codable, Equatable, Sendable {
@@ -83,6 +105,59 @@ struct TradingSettings: Codable, Equatable, Sendable {
     var maxConsecutiveLosses: Int
     var dailyLossLimitPct: Double
     var sessionProfitLimit: Double
+
+    init(
+        symbols: [String],
+        riskPct: Double,
+        rr: Double,
+        slPoints: Double,
+        tpPoints: Double,
+        minConfidence: Double,
+        protectionPct: Double,
+        trailingGapPct: Double,
+        maxTradeMinutes: Double,
+        maxPositions: Int,
+        maxConsecutiveLosses: Int,
+        dailyLossLimitPct: Double,
+        sessionProfitLimit: Double = 0
+    ) {
+        self.symbols = symbols
+        self.riskPct = riskPct
+        self.rr = rr
+        self.slPoints = slPoints
+        self.tpPoints = tpPoints
+        self.minConfidence = minConfidence
+        self.protectionPct = protectionPct
+        self.trailingGapPct = trailingGapPct
+        self.maxTradeMinutes = maxTradeMinutes
+        self.maxPositions = maxPositions
+        self.maxConsecutiveLosses = maxConsecutiveLosses
+        self.dailyLossLimitPct = dailyLossLimitPct
+        self.sessionProfitLimit = sessionProfitLimit
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case symbols, riskPct, rr, slPoints, tpPoints, minConfidence, protectionPct
+        case trailingGapPct, maxTradeMinutes, maxPositions, maxConsecutiveLosses
+        case dailyLossLimitPct, sessionProfitLimit
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        symbols = try c.decode([String].self, forKey: .symbols)
+        riskPct = try c.decode(Double.self, forKey: .riskPct)
+        rr = try c.decode(Double.self, forKey: .rr)
+        slPoints = try c.decode(Double.self, forKey: .slPoints)
+        tpPoints = try c.decode(Double.self, forKey: .tpPoints)
+        minConfidence = try c.decode(Double.self, forKey: .minConfidence)
+        protectionPct = try c.decode(Double.self, forKey: .protectionPct)
+        trailingGapPct = try c.decode(Double.self, forKey: .trailingGapPct)
+        maxTradeMinutes = try c.decode(Double.self, forKey: .maxTradeMinutes)
+        maxPositions = try c.decode(Int.self, forKey: .maxPositions)
+        maxConsecutiveLosses = try c.decode(Int.self, forKey: .maxConsecutiveLosses)
+        dailyLossLimitPct = try c.decode(Double.self, forKey: .dailyLossLimitPct)
+        sessionProfitLimit = try c.decodeIfPresent(Double.self, forKey: .sessionProfitLimit) ?? 0
+    }
 
     static let defaults = TradingSettings(
         symbols: ["EURUSD"],
@@ -178,7 +253,10 @@ struct SymbolsUpdateRequest: Codable, Sendable {
 
 struct SymbolsResponse: Codable, Equatable, Sendable {
     let selected: [String]
+    let active: [String]?
     let available: [String]
+    let total: Int?
+    let hasMore: Bool?
 }
 
 struct AuditEntry: Codable, Equatable, Identifiable, Sendable {
@@ -230,5 +308,3 @@ enum JSONValue: Codable, Equatable, Sendable {
         }
     }
 }
-
-

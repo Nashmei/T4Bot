@@ -8,12 +8,12 @@ cat > "$RUNNER_TEMP/t4bot_icon.swift" <<'SWIFT'
 import AppKit
 let size=NSSize(width:1024,height:1024), image=NSImage(size:NSSize(width:1024,height:1024))
 image.lockFocus()
-NSGradient(colors:[NSColor(calibratedRed:0.10,green:0.36,blue:0.92,alpha:1),NSColor(calibratedRed:0.20,green:0.66,blue:0.94,alpha:1)])!.draw(in:NSRect(origin:.zero,size:size),angle:-35)
+NSGradient(colors:[NSColor(calibratedRed:0.53,green:0.36,blue:0.10,alpha:1),NSColor(calibratedRed:0.70,green:0.49,blue:0.14,alpha:1),NSColor(calibratedRed:0.90,green:0.72,blue:0.32,alpha:1)])!.draw(in:NSRect(origin:.zero,size:size),angle:-35)
 let base=NSBezierPath(ovalIn:NSRect(x:180,y:180,width:664,height:664)); base.lineWidth=72
 NSColor.white.withAlphaComponent(0.16).setStroke(); base.stroke()
 let arc=NSBezierPath(); arc.lineWidth=72; arc.lineCapStyle = .round
 arc.appendArc(withCenter:NSPoint(x:512,y:512),radius:332,startAngle:-50,endAngle:225)
-NSColor(calibratedRed:0.78,green:0.98,blue:0.30,alpha:1).setStroke(); arc.stroke()
+NSColor(calibratedRed:0.96,green:0.84,blue:0.48,alpha:1).setStroke(); arc.stroke()
 let bolt=NSBezierPath(); bolt.move(to:NSPoint(x:555,y:280)); bolt.line(to:NSPoint(x:395,y:535)); bolt.line(to:NSPoint(x:500,y:535)); bolt.line(to:NSPoint(x:450,y:735)); bolt.line(to:NSPoint(x:635,y:460)); bolt.line(to:NSPoint(x:525,y:460)); bolt.close()
 NSColor.white.setFill(); bolt.fill()
 image.unlockFocus()

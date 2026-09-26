@@ -12,6 +12,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var snapshot: ServerSnapshot?
     @Published private(set) var tradeHistory: [ClosedTrade] = []
     @Published private(set) var availableSymbols: [String] = []
+    @Published private(set) var activeSymbols: [String] = []
+    @Published private(set) var symbolsHasMore = false
+    @Published private(set) var symbolsTotal = 0
     @Published private(set) var connectionState: ConnectionState = .offline
     @Published private(set) var isRefreshing = false
     @Published private(set) var isPerformingCommand = false
@@ -28,6 +31,8 @@ final class AppModel: ObservableObject {
     private var reconnectIndicatorTask: Task<Void, Never>?
     private var isAppActive = true
     private var lastFallbackAttempt = Date.distantPast
+    private var symbolQuery = ""
+    private let symbolPageSize = 200
 
     func validateConnection(using configuration: APIConfiguration) async -> Bool {
         isPerformingCommand = true
@@ -72,6 +77,10 @@ final class AppModel: ObservableObject {
         snapshot = nil
         tradeHistory = []
         availableSymbols = []
+        activeSymbols = []
+        symbolsHasMore = false
+        symbolsTotal = 0
+        symbolQuery = ""
         lastUpdated = nil
         errorMessage = nil
         operationMessage = nil
@@ -139,17 +148,55 @@ final class AppModel: ObservableObject {
     func loadHistory(silent: Bool = false) async {
         guard let configuration else { return }
         do {
-            tradeHistory = try await client.tradeHistory(limit: 50, using: configuration)
+            tradeHistory = try await client.tradeHistory(limit: 500, using: configuration)
         } catch {
             if !silent && isAppActive { errorMessage = localized(error) }
         }
     }
 
-    func loadSymbols(silent: Bool = false) async {
+    func loadSymbols(
+        silent: Bool = false,
+        force: Bool = false,
+        query: String = ""
+    ) async {
         guard let configuration else { return }
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !force && normalized == symbolQuery && !availableSymbols.isEmpty { return }
+
         do {
-            let response = try await client.symbols(using: configuration)
+            let response = try await client.symbols(
+                query: normalized,
+                limit: symbolPageSize,
+                offset: 0,
+                using: configuration
+            )
+            symbolQuery = normalized
             availableSymbols = response.available
+            activeSymbols = response.active ?? []
+            symbolsTotal = response.total ?? response.available.count
+            symbolsHasMore = response.hasMore ?? false
+        } catch {
+            if !silent && isAppActive { errorMessage = localized(error) }
+        }
+    }
+
+    func loadMoreSymbols(silent: Bool = false) async {
+        guard let configuration, symbolsHasMore else { return }
+        do {
+            let response = try await client.symbols(
+                query: symbolQuery,
+                limit: symbolPageSize,
+                offset: availableSymbols.count,
+                using: configuration
+            )
+            var merged = availableSymbols
+            for symbol in response.available where !merged.contains(symbol) {
+                merged.append(symbol)
+            }
+            availableSymbols = merged
+            activeSymbols = response.active ?? activeSymbols
+            symbolsTotal = response.total ?? symbolsTotal
+            symbolsHasMore = response.hasMore ?? false
         } catch {
             if !silent && isAppActive { errorMessage = localized(error) }
         }
@@ -202,7 +249,12 @@ final class AppModel: ObservableObject {
         defer { isPerformingCommand = false }
 
         do {
-            _ = try await client.updateSymbols(symbols, using: configuration)
+            let response = try await client.updateSymbols(symbols, using: configuration)
+            availableSymbols = response.available
+            activeSymbols = response.active ?? activeSymbols
+            symbolsTotal = response.total ?? response.available.count
+            symbolsHasMore = response.hasMore ?? false
+            symbolQuery = ""
             operationMessage = "تم تحديث الأسواق."
             await refresh(silent: true)
         } catch {
@@ -255,6 +307,8 @@ final class AppModel: ObservableObject {
                     await self.notifications.handle(event: event, account: self.snapshot?.account)
                     if event.type == "trade_closed" {
                         await self.loadHistory(silent: true)
+                    } else if event.type == "session_profit_limit" {
+                        await self.refresh(silent: true)
                     }
 
                 case .invalidation:
