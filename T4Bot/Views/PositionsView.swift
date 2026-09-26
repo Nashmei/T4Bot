@@ -4,9 +4,9 @@ import UIKit
 struct PositionsView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var selection: Segment = .open
-    @State private var historyFilter: HistoryFilter = .recent
+    @State private var historyFilter: HistoryFilter = .all
 
-    enum HistoryFilter: String, CaseIterable, Identifiable { case recent = "الأخيرة", wins = "الرابحة", losses = "الخاسرة"; var id: String { rawValue } }
+    enum HistoryFilter { case all, wins, losses }
 
     enum Segment: String, CaseIterable, Identifiable {
         case open = "مفتوحة"
@@ -24,7 +24,7 @@ struct PositionsView: View {
     private var filteredHistory: [ClosedTrade] {
         let latest = Array(appModel.tradeHistory.sorted { $0.closedAt > $1.closedAt }.prefix(50))
         switch historyFilter {
-        case .recent: return latest
+        case .all: return latest
         case .wins: return latest.filter { $0.pnl > 0 }
         case .losses: return latest.filter { $0.pnl < 0 }
         }
@@ -110,26 +110,24 @@ struct PositionsView: View {
                         HistoryMetric(
                             title: "الصافي",
                             value: money(appModel.tradeHistory.reduce(0) { $0 + $1.pnl }),
-                            positive: appModel.tradeHistory.reduce(0) { $0 + $1.pnl } >= 0
-                        )
+                            positive: appModel.tradeHistory.reduce(0) { $0 + $1.pnl } >= 0,
+                            selected: historyFilter == .all
+                        ) { historyFilter = .all }
                         HistoryMetric(
                             title: "ربح",
                             value: "\(appModel.tradeHistory.filter { $0.pnl > 0 }.count)",
-                            positive: true
-                        )
+                            positive: true,
+                            selected: historyFilter == .wins
+                        ) { historyFilter = .wins }
                         HistoryMetric(
                             title: "خسارة",
                             value: "\(appModel.tradeHistory.filter { $0.pnl < 0 }.count)",
-                            positive: false
-                        )
+                            positive: false,
+                            selected: historyFilter == .losses
+                        ) { historyFilter = .losses }
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-                }
-
-                Section {
-                    Picker("فلترة السجل", selection: $historyFilter) { ForEach(HistoryFilter.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
-                        .listRowBackground(Color.clear)
                 }
 
                 Section("آخر 50 صفقة") {
@@ -189,8 +187,11 @@ private struct HistoryMetric: View {
     let title: String
     let value: String
     let positive: Bool
+    let selected: Bool
+    let action: () -> Void
 
     var body: some View {
+        Button(action: action) {
         VStack(spacing: 5) {
             Text(value)
                 .font(.headline.monospacedDigit())
@@ -207,8 +208,9 @@ private struct HistoryMetric: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.primary.opacity(0.06), lineWidth: 0.5)
+                .stroke(selected ? T4Palette.accent : .primary.opacity(0.06), lineWidth: selected ? 2 : 0.5)
         }
+        }.buttonStyle(.plain)
     }
 }
 
@@ -299,8 +301,6 @@ private struct TradeDetailView: View {
     @State private var imageData:Data?
     @State private var imageLoadFinished=false
     @State private var fullScreen=false
-    @State private var shareItems:[Any]=[]
-    @State private var showShare=false
 
     var body:some View {
         ZStack {
@@ -327,30 +327,29 @@ private struct TradeDetailView: View {
                             }
                         }
                     }
-                    Button {prepareShare()} label:{
+                    ShareLink(item: shareText) {
                         Label("مشاركة تفاصيل الصفقة",systemImage:"square.and.arrow.up").fontWeight(.bold).frame(maxWidth:.infinity).padding(.vertical,10)
                     }.buttonStyle(.borderedProminent).tint(T4Palette.accent)
                 }.padding(16)
             }
         }
         .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement:.topBarTrailing){Button {prepareShare()} label:{Image(systemName:"square.and.arrow.up")}} }
+        .toolbar { ToolbarItem(placement:.topBarTrailing){ShareLink(item:shareText){Image(systemName:"square.and.arrow.up")}} }
         .task(id:imageID){defer{imageLoadFinished=true};guard let imageID else{return};imageData=await appModel.tradeImage(mediaID:imageID)}
         .fullScreenCover(isPresented:$fullScreen) {
             if let imageData,let image=UIImage(data:imageData){TradeImageFullScreen(image:image)}
         }
-        .sheet(isPresented:$showShare){ActivityShare(items:shareItems)}
     }
     private func detailRow(_ key:String,_ value:String)->some View {
         HStack(alignment:.firstTextBaseline){Text(key).font(.subheadline.weight(.semibold));Spacer();Text(value).font(.subheadline.monospacedDigit()).foregroundStyle(.secondary).multilineTextAlignment(.leading)}
             .padding(.vertical,13)
     }
-    private func prepareShare(){
-        var text="\(title)\nTicket: \(ticket)"
-        for r in rows{text+="\n\(r.0): \(r.1)"}
-        var items:[Any]=[text]
-        if let imageData,let image=UIImage(data:imageData){items.append(image)}
-        shareItems=items;showShare=true
+    private var shareText:String {
+        var text="\(title)
+Ticket: \(ticket)"
+        for r in rows{text+="
+\(r.0): \(r.1)"}
+        return text
     }
 }
 
@@ -364,10 +363,4 @@ private struct TradeImageFullScreen:View {
             VStack { HStack {Spacer();Button {dismiss()} label:{Image(systemName:"xmark").font(.headline.bold()).foregroundStyle(.white).frame(width:44,height:44).background(.ultraThinMaterial,in:Circle())}.padding()};Spacer() }
         }
     }
-}
-
-private struct ActivityShare:UIViewControllerRepresentable {
-    let items:[Any]
-    func makeUIViewController(context:Context)->UIActivityViewController{UIActivityViewController(activityItems:items,applicationActivities:nil)}
-    func updateUIViewController(_ uiViewController:UIActivityViewController,context:Context){}
 }

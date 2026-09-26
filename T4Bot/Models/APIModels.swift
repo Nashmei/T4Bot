@@ -17,6 +17,9 @@ struct EngineSnapshot: Codable, Equatable, Sendable {
     let lastCycleAt: Double
     let trackedPositions: Int
     let maxPositions: Int
+    let sessionStartBalance: Double
+    let sessionProfit: Double
+    let sessionProfitHit: Bool
 }
 
 struct AccountSnapshot: Codable, Equatable, Sendable {
@@ -79,6 +82,7 @@ struct TradingSettings: Codable, Equatable, Sendable {
     var maxPositions: Int
     var maxConsecutiveLosses: Int
     var dailyLossLimitPct: Double
+    var sessionProfitLimit: Double
 
     static let defaults = TradingSettings(
         symbols: ["EURUSD"],
@@ -92,7 +96,8 @@ struct TradingSettings: Codable, Equatable, Sendable {
         maxTradeMinutes: 0,
         maxPositions: 1,
         maxConsecutiveLosses: 3,
-        dailyLossLimitPct: 2
+        dailyLossLimitPct: 2,
+        sessionProfitLimit: 0
     )
 }
 
@@ -149,6 +154,7 @@ struct TradingSettingsPatch: Codable, Sendable {
     let maxPositions: Int
     let maxConsecutiveLosses: Int
     let dailyLossLimitPct: Double
+    let sessionProfitLimit: Double
 
     init(_ value: TradingSettings) {
         riskPct = value.riskPct
@@ -162,6 +168,7 @@ struct TradingSettingsPatch: Codable, Sendable {
         maxPositions = value.maxPositions
         maxConsecutiveLosses = value.maxConsecutiveLosses
         dailyLossLimitPct = value.dailyLossLimitPct
+        sessionProfitLimit = value.sessionProfitLimit
     }
 }
 

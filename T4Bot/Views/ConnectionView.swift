@@ -6,12 +6,12 @@ struct ConnectionView:View {
     @FocusState private var passwordFocused:Bool
     var body:some View {
         ZStack {
-            LinearGradient(colors:[Color(red:0.94,green:0.96,blue:1),Color(red:0.985,green:0.99,blue:1)],startPoint:.top,endPoint:.bottom).ignoresSafeArea()
+            LinearGradient(colors:[Color(red:0.98,green:0.96,blue:0.89),Color(red:0.995,green:0.985,blue:0.95)],startPoint:.top,endPoint:.bottom).ignoresSafeArea()
             ScrollView {
                 VStack(spacing:28) {
                     Spacer(minLength:70)
                     ZStack {
-                        Circle().fill(LinearGradient(colors:[T4Palette.accent,Color(red:0.25,green:0.69,blue:0.96)],startPoint:.topLeading,endPoint:.bottomTrailing)).frame(width:112,height:112)
+                        Circle().fill(LinearGradient(colors:[T4Palette.accent,T4Palette.accent2],startPoint:.topLeading,endPoint:.bottomTrailing)).frame(width:112,height:112)
                         BrandMark(size:78)
                     }.shadow(color:T4Palette.accent.opacity(0.22),radius:28,y:14)
                     VStack(spacing:7) {

@@ -44,9 +44,14 @@ struct AccountView:View {
                 }
             }.navigationTitle("الحساب").navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented:$showLogin){MT5LoginView()}
-            .confirmationDialog("تسجيل الخروج؟",isPresented:$showDisconnect,titleVisibility:.visible){
-                Button("تسجيل الخروج",role:.destructive){appModel.disconnect();connectionStore.clear()}
-                Button("إلغاء",role:.cancel){}
+            .sheet(isPresented:$showDisconnect) {
+                LogoutSheet {
+                    showDisconnect=false
+                    appModel.disconnect()
+                    connectionStore.clear()
+                }
+                .presentationDetents([.height(260)])
+                .presentationDragIndicator(.visible)
             }
         }
     }
@@ -91,5 +96,24 @@ private struct MT5LoginView:View {
     }
 }
 private struct BrandHeader:View {
-    var body:some View {VStack(spacing:10){ZStack{Circle().fill(LinearGradient(colors:[T4Palette.accent,.cyan],startPoint:.topLeading,endPoint:.bottomTrailing)).frame(width:82,height:82);BrandMark(size:58)};Text("حساب MetaTrader 5").font(.title3.bold())}}
+    var body:some View {VStack(spacing:10){ZStack{Circle().fill(LinearGradient(colors:[T4Palette.accent,T4Palette.accent2],startPoint:.topLeading,endPoint:.bottomTrailing)).frame(width:82,height:82);BrandMark(size:58)};Text("حساب MetaTrader 5").font(.title3.bold())}}
+}
+
+private struct LogoutSheet:View {
+    let confirm:()->Void
+    @Environment(\.dismiss) private var dismiss
+    var body:some View {
+        VStack(spacing:18) {
+            Capsule().fill(.secondary.opacity(0.25)).frame(width:38,height:5)
+            Image(systemName:"rectangle.portrait.and.arrow.right").font(.system(size:40)).foregroundStyle(T4Palette.negative)
+            VStack(spacing:5) {
+                Text("تسجيل الخروج؟").font(.title3.bold())
+                Text("سيتم حذف اتصال T4Bot من هذا الجهاز فقط.").font(.footnote).foregroundStyle(.secondary)
+            }
+            HStack {
+                Button("إلغاء"){dismiss()}.buttonStyle(.bordered).frame(maxWidth:.infinity)
+                Button("تسجيل الخروج",role:.destructive){confirm()}.buttonStyle(.borderedProminent).tint(T4Palette.negative).frame(maxWidth:.infinity)
+            }
+        }.padding(22)
+    }
 }

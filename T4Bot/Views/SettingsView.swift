@@ -23,6 +23,7 @@ struct SettingsView:View {
                         Stepper("حد المراكز: \(draft.maxPositions)",value:$draft.maxPositions,in:1...10)
                         Stepper("حد الخسائر: \(draft.maxConsecutiveLosses)",value:$draft.maxConsecutiveLosses,in:0...20)
                         row("حد Equity اليومي %",$draft.dailyLossLimitPct,"0 = معطل.")
+                        row("حد ربح الجلسة $",$draft.sessionProfitLimit,"يعتمد على الرصيد بعد إغلاق الصفقات فقط. 0 = بدون حد.")
                     } header:{SettingsHeader("المخاطرة وحدود التداول","shield.lefthalf.filled")}
                     Section {
                         row("R:R Override",$draft.rr,"0 = AI يختار SL/TP والمحرك يحسب R:R الفعلي.")

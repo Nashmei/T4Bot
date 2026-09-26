@@ -119,7 +119,12 @@ struct DashboardView: View {
         return !((h == 23 && m >= 45) || (h == 0 && m < 30))
     }
     private var connectionPill:some View {
-        StatusPill(title: appModel.connectionState == .live ? "مباشر" : "يتصل", isPositive: appModel.connectionState == .live).allowsHitTesting(false)
+        Text(appModel.connectionState == .live ? "مباشر" : "يتصل")
+            .font(.caption.bold())
+            .foregroundStyle(appModel.connectionState == .live ? T4Palette.positive : .secondary)
+            .fixedSize()
+            .allowsHitTesting(false)
+            .accessibilityAddTraits(.isStaticText)
     }
     private func money(_ v:Double,_ c:String)->String { v.formatted(.currency(code:c.isEmpty ? "USD":c)) }
 }

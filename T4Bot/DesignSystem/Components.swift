@@ -1,9 +1,9 @@
 import SwiftUI
 
 enum T4Palette {
-    static let accent = Color(red: 0.17, green: 0.42, blue: 0.92)
-    static let accent2 = Color(red: 0.79, green: 0.96, blue: 0.39)
-    static let cyan = Color(red: 0.38, green: 0.82, blue: 0.95)
+    static let accent = Color(red: 0.78, green: 0.55, blue: 0.12)
+    static let accent2 = Color(red: 0.96, green: 0.78, blue: 0.31)
+    static let cyan = Color(red: 0.72, green: 0.62, blue: 0.35)
     static let positive = Color(red: 0.18, green: 0.72, blue: 0.43)
     static let negative = Color(red: 0.93, green: 0.31, blue: 0.35)
 }
@@ -11,7 +11,7 @@ enum T4Palette {
 struct AppBackdrop: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        (scheme == .dark ? Color(red: 0.035, green: 0.045, blue: 0.07) : Color(red: 0.955, green: 0.965, blue: 0.985))
+        (scheme == .dark ? Color(red: 0.075, green: 0.068, blue: 0.052) : Color(red: 0.975, green: 0.965, blue: 0.925))
             .ignoresSafeArea()
     }
 }
@@ -32,7 +32,7 @@ struct HeroCard<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
         content.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-            .background(LinearGradient(colors: [T4Palette.accent, Color(red: 0.28, green: 0.63, blue: 0.94), T4Palette.cyan],
+            .background(LinearGradient(colors: [Color(red:0.68,green:0.45,blue:0.08), T4Palette.accent, Color(red:0.91,green:0.70,blue:0.25)],
                                        startPoint: .topLeading, endPoint: .bottomTrailing),
                         in: RoundedRectangle(cornerRadius: 28, style: .continuous))
             .foregroundStyle(.white)
