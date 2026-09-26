@@ -6,23 +6,19 @@ mkdir -p "$ICON_DIR"
 
 cat > "$RUNNER_TEMP/t4bot_icon.swift" <<'SWIFT'
 import AppKit
-let size = NSSize(width: 1024, height: 1024)
-let image = NSImage(size: size)
+let size=NSSize(width:1024,height:1024), image=NSImage(size:NSSize(width:1024,height:1024))
 image.lockFocus()
-let bg = NSGradient(colors: [NSColor(calibratedRed:0.025,green:0.04,blue:0.07,alpha:1), NSColor(calibratedRed:0.02,green:0.16,blue:0.24,alpha:1)])!
-bg.draw(in: NSRect(origin:.zero,size:size), angle: -45)
-let ring = NSBezierPath(ovalIn: NSRect(x:150,y:150,width:724,height:724)); ring.lineWidth=34
-NSColor(calibratedRed:0.10,green:0.68,blue:1,alpha:0.30).setStroke(); ring.stroke()
-let mark = NSBezierPath(); mark.lineWidth=64; mark.lineCapStyle = .round; mark.lineJoinStyle = .round
-mark.move(to:NSPoint(x:230,y:430)); mark.line(to:NSPoint(x:390,y:590)); mark.line(to:NSPoint(x:515,y:465)); mark.line(to:NSPoint(x:690,y:640)); mark.line(to:NSPoint(x:790,y:540))
-NSColor(calibratedRed:0.16,green:0.72,blue:1,alpha:1).setStroke(); mark.stroke()
-let arrow=NSBezierPath(); arrow.lineWidth=64; arrow.lineCapStyle = .round
-arrow.move(to:NSPoint(x:790,y:540)); arrow.line(to:NSPoint(x:790,y:745)); arrow.move(to:NSPoint(x:790,y:745)); arrow.line(to:NSPoint(x:600,y:745)); arrow.stroke()
-let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:150,weight:.black),.foregroundColor:NSColor.white]
-NSAttributedString(string:"T4",attributes:attrs).draw(at:NSPoint(x:230,y:205))
+NSGradient(colors:[NSColor(calibratedRed:0.10,green:0.36,blue:0.92,alpha:1),NSColor(calibratedRed:0.20,green:0.66,blue:0.94,alpha:1)])!.draw(in:NSRect(origin:.zero,size:size),angle:-35)
+let base=NSBezierPath(ovalIn:NSRect(x:180,y:180,width:664,height:664)); base.lineWidth=72
+NSColor.white.withAlphaComponent(0.16).setStroke(); base.stroke()
+let arc=NSBezierPath(); arc.lineWidth=72; arc.lineCapStyle=.round
+arc.appendArc(withCenter:NSPoint(x:512,y:512),radius:332,startAngle:-50,endAngle:225)
+NSColor(calibratedRed:0.78,green:0.98,blue:0.30,alpha:1).setStroke(); arc.stroke()
+let bolt=NSBezierPath(); bolt.move(to:NSPoint(x:555,y:280)); bolt.line(to:NSPoint(x:395,y:535)); bolt.line(to:NSPoint(x:500,y:535)); bolt.line(to:NSPoint(x:450,y:735)); bolt.line(to:NSPoint(x:635,y:460)); bolt.line(to:NSPoint(x:525,y:460)); bolt.close()
+NSColor.white.setFill(); bolt.fill()
 image.unlockFocus()
-guard let tiff=image.tiffRepresentation, let rep=NSBitmapImageRep(data:tiff), let png=rep.representation(using:.png,properties:[:]) else { fatalError("icon") }
-try png.write(to: URL(fileURLWithPath:"T4Bot/Assets.xcassets/AppIcon.appiconset/AppIcon.png"))
+guard let t=image.tiffRepresentation,let r=NSBitmapImageRep(data:t),let d=r.representation(using:.png,properties:[:]) else{fatalError()}
+try d.write(to:URL(fileURLWithPath:"T4Bot/Assets.xcassets/AppIcon.appiconset/AppIcon.png"))
 SWIFT
 swift "$RUNNER_TEMP/t4bot_icon.swift"
 

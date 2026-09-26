@@ -58,10 +58,6 @@ struct PositionsView: View {
                 }
             }
             .navigationTitle("الصفقات")
-            .refreshable {
-                await appModel.refresh(silent: true)
-                await appModel.loadHistory(silent: true)
-            }
         }
     }
 
@@ -299,49 +295,79 @@ private struct ClosedTradeRow: View {
 
 private struct TradeDetailView: View {
     @EnvironmentObject private var appModel: AppModel
+    let title:String; let ticket:Int64; let imageID:String?; let rows:[(String,String)]
+    @State private var imageData:Data?
+    @State private var imageLoadFinished=false
+    @State private var fullScreen=false
+    @State private var shareItems:[Any]=[]
+    @State private var showShare=false
 
-    let title: String
-    let ticket: Int64
-    let imageID: String?
-    let rows: [(String, String)]
-
-    @State private var imageData: Data?
-    @State private var imageLoadFinished = false
-
-    var body: some View {
-        List {
-            if let imageData, let image = UIImage(data: imageData) {
-                Section("صورة الصفقة") {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .listRowInsets(EdgeInsets())
-                }
-            } else if imageID != nil && !imageLoadFinished {
-                Section("صورة الصفقة") {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
+    var body:some View {
+        ZStack {
+            AppBackdrop()
+            ScrollView {
+                VStack(spacing:16) {
+                    if let imageData,let image=UIImage(data:imageData) {
+                        SurfaceCard {
+                            VStack(alignment:.leading,spacing:12) {
+                                HStack { Text("صورة الصفقة").font(.headline); Spacer(); Button {fullScreen=true} label:{Label("تكبير",systemImage:"arrow.up.left.and.arrow.down.right")} .font(.caption.bold()) }
+                                Button {fullScreen=true} label:{
+                                    Image(uiImage:image).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius:18))
+                                }.buttonStyle(.plain)
+                            }
+                        }
+                    } else if imageID != nil && !imageLoadFinished {
+                        SurfaceCard { HStack {Spacer();ProgressView();Spacer()}.padding(.vertical,60) }
                     }
-                }
-            }
-
-            Section("التفاصيل") {
-                LabeledContent("Ticket", value: String(ticket))
-                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                    LabeledContent(row.0, value: row.1)
-                }
+                    SurfaceCard {
+                        VStack(spacing:0) {
+                            detailRow("Ticket",String(ticket))
+                            ForEach(Array(rows.enumerated()),id:.offset){i,row in
+                                Divider().opacity(0.5); detailRow(row.0,row.1)
+                            }
+                        }
+                    }
+                    Button {prepareShare()} label:{
+                        Label("مشاركة تفاصيل الصفقة",systemImage:"square.and.arrow.up").fontWeight(.bold).frame(maxWidth:.infinity).padding(.vertical,10)
+                    }.buttonStyle(.borderedProminent).tint(T4Palette.accent)
+                }.padding(16)
             }
         }
-        .t4ListBackground()
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-        .task(id: imageID) {
-            defer { imageLoadFinished = true }
-            guard let imageID else { return }
-            imageData = await appModel.tradeImage(mediaID: imageID)
+        .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement:.topBarTrailing){Button {prepareShare()} label:{Image(systemName:"square.and.arrow.up")}} }
+        .task(id:imageID){defer{imageLoadFinished=true};guard let imageID else{return};imageData=await appModel.tradeImage(mediaID:imageID)}
+        .fullScreenCover(isPresented:$fullScreen) {
+            if let imageData,let image=UIImage(data:imageData){TradeImageFullScreen(image:image)}
+        }
+        .sheet(isPresented:$showShare){ActivityShare(items:shareItems)}
+    }
+    private func detailRow(_ key:String,_ value:String)->some View {
+        HStack(alignment:.firstTextBaseline){Text(key).font(.subheadline.weight(.semibold));Spacer();Text(value).font(.subheadline.monospacedDigit()).foregroundStyle(.secondary).multilineTextAlignment(.leading)}
+            .padding(.vertical,13)
+    }
+    private func prepareShare(){
+        var text="(title)\nTicket: (ticket)"
+        for r in rows{text+="\n(r.0): (r.1)"}
+        var items:[Any]=[text]
+        if let imageData,let image=UIImage(data:imageData){items.append(image)}
+        shareItems=items;showShare=true
+    }
+}
+
+private struct TradeImageFullScreen:View {
+    let image:UIImage
+    @Environment(.dismiss) private var dismiss
+    var body:some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            Image(uiImage:image).resizable().scaledToFit().padding(.vertical,50)
+            VStack { HStack {Spacer();Button {dismiss()} label:{Image(systemName:"xmark").font(.headline.bold()).foregroundStyle(.white).frame(width:44,height:44).background(.ultraThinMaterial,in:Circle())}.padding()};Spacer() }
         }
     }
+}
+
+private struct ActivityShare:UIViewControllerRepresentable {
+    let items:[Any]
+    func makeUIViewController(context:Context)->UIActivityViewController{UIActivityViewController(activityItems:items,applicationActivities:nil)}
+    func updateUIViewController(_ uiViewController:UIActivityViewController,context:Context){}
 }

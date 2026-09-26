@@ -14,16 +14,16 @@ struct SettingsView:View {
             ZStack {
                 AppBackdrop()
                 Form {
-                    Section("المظهر") {
+                    Section {
                         Picker("المظهر",selection:$appearance) { ForEach(AppAppearance.allCases){ Text($0.title).tag($0.rawValue) } }.pickerStyle(.segmented)
-                    }
-                    Section("المخاطرة") {
+                    } header:{SettingsHeader("المظهر","circle.lefthalf.filled")}
+                    Section {
                         row("المخاطرة %",$draft.riskPct,"تحدد حجم المخاطرة النقدية.")
                         row("الثقة %",$draft.minConfidence,"أقل ثقة للدخول.")
                         Stepper("حد المراكز: \(draft.maxPositions)",value:$draft.maxPositions,in:1...10)
                         Stepper("حد الخسائر: \(draft.maxConsecutiveLosses)",value:$draft.maxConsecutiveLosses,in:0...20)
                         row("حد Equity اليومي %",$draft.dailyLossLimitPct,"0 = معطل.")
-                    }
+                    } header:{SettingsHeader("المخاطرة وحدود التداول","shield.lefthalf.filled")}
                     Section {
                         row("R:R Override",$draft.rr,"0 = AI يختار SL/TP والمحرك يحسب R:R الفعلي.")
                         row("SL Points",$draft.slPoints,"0 = AI")
@@ -34,14 +34,14 @@ struct SettingsView:View {
                         Button("إرجاع إدارة الصفقة إلى AI") {
                             draft.rr=0; draft.slPoints=0; draft.tpPoints=0; draft.protectionPct=0; draft.trailingGapPct=0; draft.maxTradeMinutes=0
                         }
-                    } header:{Text("إدارة AI")} footer:{Text("اختيار الأزواج انتقل إلى صفحة التحليل في 1.2.1.")}
-                    Section("الإشعارات") {
+                    } header:{SettingsHeader("إدارة الصفقة","brain.head.profile")} footer:{Text("القيمة 0 تعني أن AI يديرها تلقائياً. اختيار الأزواج موجود في صفحة التحليل.")}
+                    Section {
                         Toggle("داخل التطبيق",isOn:$notificationManager.inAppEnabled)
                         Toggle("إشعارات iOS",isOn:$notificationManager.outsideEnabled)
                         Toggle("فتح صفقة",isOn:$notificationManager.tradeOpened)
                         Toggle("إغلاق صفقة",isOn:$notificationManager.tradeClosed)
                         Toggle("حماية الربح",isOn:$notificationManager.profitProtection)
-                    }
+                    } header:{SettingsHeader("الإشعارات","bell.fill")}
                     Section {
                         Button { focused=false; Task { await appModel.update(settings:draft); hasEdits=false } } label:{
                             Label("حفظ الإعدادات",systemImage:"checkmark.circle.fill").frame(maxWidth:.infinity)
@@ -68,4 +68,11 @@ struct SettingsView:View {
             Text(help).font(.caption2).foregroundStyle(.secondary)
         }
     }
+}
+
+
+private struct SettingsHeader:View {
+    let title:String; let icon:String
+    init(_ title:String,_ icon:String){self.title=title;self.icon=icon}
+    var body:some View {Label(title,systemImage:icon).font(.caption.bold()).foregroundStyle(T4Palette.accent)}
 }

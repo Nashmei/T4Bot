@@ -1,206 +1,93 @@
 import SwiftUI
 
-struct AccountView: View {
-    @EnvironmentObject private var appModel: AppModel
-    @EnvironmentObject private var connectionStore: ConnectionStore
-    @State private var showLogin = false
-    @State private var showDisconnect = false
-
-    var body: some View {
+struct AccountView:View {
+    @EnvironmentObject private var appModel:AppModel
+    @EnvironmentObject private var connectionStore:ConnectionStore
+    @State private var showLogin=false
+    @State private var showDisconnect=false
+    var body:some View {
         NavigationStack {
             ZStack {
                 AppBackdrop()
-
                 ScrollView {
-                    VStack(spacing: 16) {
-                        if let account = appModel.snapshot?.account {
+                    VStack(spacing:16) {
+                        if let a=appModel.snapshot?.account {
+                            HeroCard {
+                                HStack(spacing:16) {
+                                    ZStack {Circle().fill(.white.opacity(0.15)).frame(width:62,height:62);Image(systemName:"person.crop.circle.fill").font(.system(size:38))}
+                                    VStack(alignment:.leading,spacing:5) {
+                                        Text("MT5 • "+String(a.login)).font(.title3.bold()).monospacedDigit()
+                                        Text(a.isDemo ? "حساب Demo":"حساب Real").font(.caption).opacity(0.85)
+                                        Text(a.server).font(.caption2).opacity(0.65).lineLimit(1)
+                                    }
+                                    Spacer()
+                                }
+                            }
                             SurfaceCard {
-                                VStack(alignment: .leading, spacing: 14) {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("حساب MT5")
-                                                .font(.title3.bold())
-                                            Text(String(account.login))
-                                                .font(.subheadline.monospacedDigit())
-                                                .foregroundStyle(.secondary)
-                                        }
-
-                                        Spacer()
-
-                                        Text(account.isDemo ? "DEMO" : "LIVE")
-                                            .font(.caption.bold())
-                                            .foregroundStyle(account.isDemo ? .blue : .orange)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 6)
-                                            .background((account.isDemo ? Color.blue : Color.orange).opacity(0.10), in: Capsule())
-                                    }
-
-                                    Divider().opacity(0.5)
-
-                                    HStack {
-                                        accountMetric("Balance", account.balance, account.currency)
-                                        accountMetric("Equity", account.equity, account.currency)
-                                    }
-
-                                    HStack {
-                                        accountMetric("Margin", account.margin, account.currency)
-                                        accountMetric("Free", account.marginFree, account.currency)
-                                    }
+                                VStack(spacing:14) {
+                                    value("الرصيد",a.balance,a.currency); Divider()
+                                    value("Equity",a.equity,a.currency); Divider()
+                                    value("الهامش الحر",a.marginFree,a.currency)
                                 }
                             }
                         } else {
-                            ContentUnavailableView(
-                                "MT5 غير متصل",
-                                systemImage: "person.crop.circle.badge.exclamationmark",
-                                description: Text("اربط حساب MT5 DEMO من التطبيق.")
-                            )
-                            .padding(.vertical, 30)
+                            ContentUnavailableView("MT5 غير متصل",systemImage:"person.crop.circle.badge.exclamationmark",description:Text("اربط حساب MT5 للمتابعة.")).padding(.vertical,35)
                         }
-
-                        if let readiness = appModel.snapshot?.readiness {
-                            SurfaceCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    SectionHeader("الجاهزية")
-                                    readinessRow("MT5", readiness.connected)
-                                    readinessRow("التداول", readiness.tradeAllowed && readiness.accountTradeAllowed)
-                                    readinessRow("Expert", readiness.tradeExpert)
-                                }
-                            }
-                        }
-
                         SurfaceCard {
-                            VStack(spacing: 12) {
-                                HStack {
-                                    Label("اتصال التطبيق", systemImage: "lock.shield.fill")
-                                    Spacer()
-                                    StatusPill(title: "متصل وآمن", isPositive: true)
-                                }
-
-                                Button {
-                                    showLogin = true
-                                } label: {
-                                    Label("ربط حساب MT5 DEMO", systemImage: "person.badge.key")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(T4Palette.accent)
-                                .disabled(appModel.snapshot?.engine.running == true)
-
-                                Button("نسيان بيانات الدخول", role: .destructive) {
-                                    showDisconnect = true
-                                }
-                                .frame(maxWidth: .infinity)
+                            VStack(spacing:12) {
+                                Button {showLogin=true} label:{Label("تغيير حساب MT5",systemImage:"person.badge.key").frame(maxWidth:.infinity)}
+                                    .buttonStyle(.borderedProminent).tint(T4Palette.accent).disabled(appModel.snapshot?.engine.running == true)
+                                Button("تسجيل الخروج من T4Bot",role:.destructive){showDisconnect=true}.frame(maxWidth:.infinity)
                             }
                         }
-                    }
-                    .padding(16)
+                    }.padding(16)
                 }
-            }
-            .navigationTitle("الحساب")
-            .sheet(isPresented: $showLogin) {
-                MT5LoginView()
-            }
-            .confirmationDialog(
-                "نسيان بيانات الدخول؟",
-                isPresented: $showDisconnect,
-                titleVisibility: .visible
-            ) {
-                Button("نسيان", role: .destructive) {
-                    appModel.disconnect()
-                    connectionStore.clear()
-                }
-                Button("إلغاء", role: .cancel) {}
+            }.navigationTitle("الحساب").navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented:$showLogin){MT5LoginView()}
+            .confirmationDialog("تسجيل الخروج؟",isPresented:$showDisconnect,titleVisibility:.visible){
+                Button("تسجيل الخروج",role:.destructive){appModel.disconnect();connectionStore.clear()}
+                Button("إلغاء",role:.cancel){}
             }
         }
     }
-
-    private func accountMetric(_ title: String, _ value: Double, _ currency: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value.formatted(.currency(code: currency)))
-                .font(.headline.monospacedDigit())
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func readinessRow(_ title: String, _ value: Bool) -> some View {
-        HStack {
-            Image(systemName: value ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(value ? .green : .red)
-            Text(title)
-            Spacer()
-            Text(value ? "جاهز" : "غير جاهز")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
+    private func value(_ t:String,_ v:Double,_ c:String)->some View {HStack{Text(t).foregroundStyle(.secondary);Spacer();Text(v.formatted(.currency(code:c))).font(.headline.monospacedDigit())}}
 }
 
-private struct MT5LoginView: View {
-    @EnvironmentObject private var appModel: AppModel
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var server = "MetaQuotes-Demo"
-    @State private var login = ""
-    @State private var password = ""
-
-    var body: some View {
+private struct MT5LoginView:View {
+    @EnvironmentObject private var appModel:AppModel
+    @Environment(.dismiss) private var dismiss
+    @State private var server="MetaQuotes-Demo",login="",password=""
+    var body:some View {
         NavigationStack {
-            Form {
-                Section("بيانات MT5") {
-                    TextField("Broker / Server", text: $server)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-
-                    TextField("Login", text: $login)
-                        .keyboardType(.numberPad)
-
-                    SecureField("Password", text: $password)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
-
-                Section {
-                    Button {
-                        guard let loginNumber = Int64(login), !server.isEmpty, !password.isEmpty else {
-                            appModel.errorMessage = "تحقق من بيانات MT5."
-                            return
+            ZStack {
+                AppBackdrop()
+                ScrollView {
+                    VStack(spacing:18) {
+                        BrandHeader()
+                        SurfaceCard {
+                            VStack(spacing:14) {
+                                field("السيرفر","building.2.fill"){TextField("MetaQuotes-Demo",text:$server).textInputAutocapitalization(.never).autocorrectionDisabled()}
+                                field("رقم الحساب","number"){TextField("Login",text:$login).keyboardType(.numberPad)}
+                                field("كلمة مرور MT5","key.fill"){SecureField("Password",text:$password).textInputAutocapitalization(.never)}
+                            }
                         }
-
-                        Task {
-                            let success = await appModel.login(
-                                server: server,
-                                login: loginNumber,
-                                password: password
-                            )
-                            password = ""
-                            if success { dismiss() }
-                        }
-                    } label: {
-                        Label("تسجيل الدخول", systemImage: "lock.open.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .disabled(appModel.isPerformingCommand)
-                } footer: {
-                    Text("كلمة مرور MT5 لا تحفظ داخل التطبيق.")
+                        Button {
+                            guard let n=Int64(login),!server.isEmpty,!password.isEmpty else{appModel.errorMessage="تحقق من بيانات MT5.";return}
+                            Task{let ok=await appModel.login(server:server,login:n,password:password);password="";if ok{dismiss()}}
+                        } label:{Label("ربط الحساب",systemImage:"lock.open.fill").fontWeight(.bold).frame(maxWidth:.infinity).padding(.vertical,10)}
+                            .buttonStyle(.borderedProminent).tint(T4Palette.accent).disabled(appModel.isPerformingCommand)
+                        Text("كلمة مرور MT5 تستخدم للاتصال فقط ولا تحفظ داخل التطبيق.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    }.padding(18)
                 }
-            }
-            .t4ListBackground()
-            .navigationTitle("ربط MT5")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("إلغاء") {
-                        password = ""
-                        dismiss()
-                    }
-                }
-            }
+            }.navigationTitle("ربط MT5").navigationBarTitleDisplayMode(.inline)
+            .toolbar{ToolbarItem(placement:.cancellationAction){Button("إلغاء"){password="";dismiss()}}}
             .loadingOverlay(appModel.isPerformingCommand)
         }
     }
+    private func field<C:View>(_ title:String,_ icon:String,@ViewBuilder content:()->C)->some View {
+        VStack(alignment:.leading,spacing:7){Label(title,systemImage:icon).font(.caption.bold()).foregroundStyle(.secondary);content().padding(13).background(.primary.opacity(0.045),in:RoundedRectangle(cornerRadius:14))}
+    }
+}
+private struct BrandHeader:View {
+    var body:some View {VStack(spacing:10){ZStack{Circle().fill(LinearGradient(colors:[T4Palette.accent,.cyan],startPoint:.topLeading,endPoint:.bottomTrailing)).frame(width:82,height:82);BrandMark(size:58)};Text("حساب MetaTrader 5").font(.title3.bold())}}
 }

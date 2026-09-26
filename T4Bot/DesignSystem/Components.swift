@@ -90,3 +90,39 @@ extension View {
     func loadingOverlay(_ active: Bool) -> some View { modifier(LoadingOverlay(active: active)) }
     func t4ListBackground() -> some View { scrollContentBackground(.hidden).background(AppBackdrop()) }
 }
+
+struct BrandMark: View {
+    var size: CGFloat = 72
+    var running: Bool = true
+    var body: some View {
+        ZStack {
+            Circle().stroke(.white.opacity(0.18), lineWidth: size * 0.085)
+            Circle().trim(from: 0.03, to: running ? 0.82 : 0.27)
+                .stroke(T4Palette.accent2, style: StrokeStyle(lineWidth: size * 0.085, lineCap: .round))
+                .rotationEffect(.degrees(-88))
+            Image(systemName: running ? "bolt.fill" : "pause.fill")
+                .font(.system(size: size * 0.34, weight: .black)).foregroundStyle(.white)
+        }.frame(width:size,height:size)
+    }
+}
+
+struct AccountRingMetric: View {
+    let title:String; let value:String; let progress:Double; let icon:String; let detail:String
+    var tint:Color = T4Palette.accent2
+    var body: some View {
+        SurfaceCard {
+            HStack(spacing:12) {
+                ZStack {
+                    Circle().stroke(tint.opacity(0.16),lineWidth:7)
+                    Circle().trim(from:0,to:max(0.03,min(progress,1))).stroke(tint,style:StrokeStyle(lineWidth:7,lineCap:.round)).rotationEffect(.degrees(-90))
+                    Image(systemName:icon).font(.caption.bold()).foregroundStyle(tint)
+                }.frame(width:48,height:48)
+                VStack(alignment:.leading,spacing:3) {
+                    Text(title).font(.caption).foregroundStyle(.secondary)
+                    Text(value).font(.headline.monospacedDigit()).lineLimit(1).minimumScaleFactor(0.62)
+                    Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+        }
+    }
+}

@@ -57,10 +57,12 @@ struct AnalysisView: View {
             }
             .navigationTitle("التحليل").navigationBarTitleDisplayMode(.inline)
             .onAppear { selected=Set(appModel.snapshot?.settings.symbols ?? []) }
-            .onChange(of:appModel.snapshot) { _,n in if let n { selected=Set(n.settings.symbols) } }
-            .sheet(isPresented:$showPicker) { AnalysisSymbolPicker(available:appModel.availableSymbols,selection:$selected) {
-                Task { await appModel.update(symbols:selected.sorted()) }
-            }}
+            .sheet(isPresented:$showPicker) {
+                AnalysisSymbolPicker(available:appModel.availableSymbols, initialSelection:selected) { saved in
+                    selected=saved
+                    Task { await appModel.update(symbols:saved.sorted()) }
+                }
+            }
             .loadingOverlay(appModel.isPerformingCommand)
         }
     }
@@ -91,7 +93,12 @@ private struct AnalysisCard:View {
 }
 
 private struct AnalysisSymbolPicker:View {
-    let available:[String]; @Binding var selection:Set<String>; let onSave:()->Void
+    let available:[String]; let initialSelection:Set<String>; let onSave:(Set<String>)->Void
+    @State private var selection:Set<String>
+    init(available:[String], initialSelection:Set<String>, onSave:@escaping(Set<String>)->Void) {
+        self.available=available; self.initialSelection=initialSelection; self.onSave=onSave
+        _selection=State(initialValue:initialSelection)
+    }
     @Environment(\.dismiss) private var dismiss
     @State private var query=""
     private let popular=["XAUUSD","XAGUSD","EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD","EURJPY","GBPJPY","EURGBP"]
@@ -112,7 +119,7 @@ private struct AnalysisSymbolPicker:View {
             }.searchable(text:$query,prompt:"ابحث في رموز MT5").navigationTitle("اختيار الأزواج")
             .toolbar {
                 ToolbarItem(placement:.cancellationAction){Button("إلغاء"){dismiss()}}
-                ToolbarItem(placement:.confirmationAction){Button("حفظ"){onSave();dismiss()}.disabled(selection.isEmpty)}
+                ToolbarItem(placement:.confirmationAction){Button("حفظ"){onSave(selection);dismiss()}.disabled(selection.isEmpty)}
             }
         }
     }
