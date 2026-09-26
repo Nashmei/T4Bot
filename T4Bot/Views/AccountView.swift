@@ -5,6 +5,7 @@ struct AccountView:View {
     @EnvironmentObject private var connectionStore:ConnectionStore
     @State private var showLogin=false
     @State private var showDisconnect=false
+    @State private var showLiveConfirmation=false
     var body:some View {
         NavigationStack {
             ZStack {
@@ -28,6 +29,26 @@ struct AccountView:View {
                                     value("الرصيد",a.balance,a.currency); Divider()
                                     value("Equity",a.equity,a.currency); Divider()
                                     value("الهامش الحر",a.marginFree,a.currency)
+                                }
+                            }
+                            if !a.isDemo {
+                                SurfaceCard {
+                                    VStack(alignment:.leading,spacing:12) {
+                                        HStack {
+                                            Circle().fill(appModel.snapshot?.live?.tradingUnlocked == true ? Color.green : Color.red).frame(width:9,height:9)
+                                            Text(appModel.snapshot?.live?.tradingUnlocked == true ? "التداول الحقيقي مفعّل" : "التداول الحقيقي مقفول").font(.headline)
+                                            Spacer()
+                                        }
+                                        Text("ربط حساب Real لا يفعّل التداول تلقائيًا. يلزم تفعيل Live بشكل منفصل، ويعود القفل تلقائيًا عند تغيير الحساب أو إعادة تشغيل البوت.")
+                                            .font(.caption).foregroundStyle(.secondary)
+                                        if appModel.snapshot?.live?.tradingUnlocked == true {
+                                            Button("قفل Live وإيقاف المحرك",role:.destructive){Task{await appModel.lockLive()}}
+                                                .buttonStyle(.bordered).frame(maxWidth:.infinity)
+                                        } else {
+                                            Button("تفعيل التداول الحقيقي"){showLiveConfirmation=true}
+                                                .buttonStyle(.borderedProminent).tint(.red).frame(maxWidth:.infinity)
+                                        }
+                                    }
                                 }
                             }
                         } else {
@@ -60,6 +81,12 @@ struct AccountView:View {
                 }
             }.navigationTitle("الحساب").navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented:$showLogin){MT5LoginView()}
+            .alert("تفعيل التداول الحقيقي؟",isPresented:$showLiveConfirmation) {
+                Button("إلغاء",role:.cancel){}
+                Button("تفعيل Live",role:.destructive){Task{await appModel.activateLive()}}
+            } message: {
+                Text("سيُسمح للمحرك بإرسال أوامر حقيقية إلى حساب MT5 الحالي حتى تغيير الحساب أو إعادة تشغيل البوت أو قفل Live يدويًا.")
+            }
             .sheet(isPresented:$showDisconnect) {
                 LogoutSheet {
                     showDisconnect=false
@@ -77,7 +104,7 @@ struct AccountView:View {
 private struct MT5LoginView:View {
     @EnvironmentObject private var appModel:AppModel
     @Environment(\.dismiss) private var dismiss
-    @State private var server = "MetaQuotes-Demo"
+    @State private var server = ""
     @State private var login = ""
     @State private var password = ""
     var body:some View {
@@ -89,7 +116,7 @@ private struct MT5LoginView:View {
                         BrandHeader()
                         SurfaceCard {
                             VStack(spacing:14) {
-                                field("السيرفر","building.2.fill"){TextField("MetaQuotes-Demo",text:$server).textInputAutocapitalization(.never).autocorrectionDisabled()}
+                                field("السيرفر","building.2.fill"){TextField("اسم سيرفر الوسيط كما يظهر في MT5",text:$server).textInputAutocapitalization(.never).autocorrectionDisabled()}
                                 field("رقم الحساب","number"){TextField("Login",text:$login).keyboardType(.numberPad)}
                                 field("كلمة مرور MT5","key.fill"){SecureField("Password",text:$password).textInputAutocapitalization(.never)}
                             }
@@ -99,7 +126,7 @@ private struct MT5LoginView:View {
                             Task{let ok=await appModel.login(server:server,login:n,password:password);password="";if ok{dismiss()}}
                         } label:{Label("ربط الحساب",systemImage:"lock.open.fill").fontWeight(.bold).frame(maxWidth:.infinity).padding(.vertical,10)}
                             .buttonStyle(.borderedProminent).tint(T4Palette.accent).disabled(appModel.isPerformingCommand)
-                        Text("كلمة مرور MT5 تستخدم للاتصال فقط ولا تحفظ داخل التطبيق.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        Text("اكتب اسم السيرفر كما يظهر في MT5 لدى وسيطك. يدعم Demo وReal، وربط Real لا يفعّل التداول الحقيقي تلقائيًا. كلمة المرور لا تحفظ داخل التطبيق.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     }.padding(18)
                 }
             }.navigationTitle("ربط MT5").navigationBarTitleDisplayMode(.inline)
