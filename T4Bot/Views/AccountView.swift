@@ -55,8 +55,10 @@ struct AccountView:View {
 
 private struct MT5LoginView:View {
     @EnvironmentObject private var appModel:AppModel
-    @Environment(.dismiss) private var dismiss
-    @State private var server="MetaQuotes-Demo",login="",password=""
+    @Environment(\.dismiss) private var dismiss
+    @State private var server = "MetaQuotes-Demo"
+    @State private var login = ""
+    @State private var password = ""
     var body:some View {
         NavigationStack {
             ZStack {

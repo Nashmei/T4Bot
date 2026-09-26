@@ -322,7 +322,7 @@ private struct TradeDetailView: View {
                     SurfaceCard {
                         VStack(spacing:0) {
                             detailRow("Ticket",String(ticket))
-                            ForEach(Array(rows.enumerated()),id:.offset){i,row in
+                            ForEach(Array(rows.enumerated()),id: \.offset){i,row in
                                 Divider().opacity(0.5); detailRow(row.0,row.1)
                             }
                         }
@@ -346,8 +346,8 @@ private struct TradeDetailView: View {
             .padding(.vertical,13)
     }
     private func prepareShare(){
-        var text="(title)\nTicket: (ticket)"
-        for r in rows{text+="\n(r.0): (r.1)"}
+        var text="\(title)\nTicket: \(ticket)"
+        for r in rows{text+="\n\(r.0): \(r.1)"}
         var items:[Any]=[text]
         if let imageData,let image=UIImage(data:imageData){items.append(image)}
         shareItems=items;showShare=true
@@ -356,7 +356,7 @@ private struct TradeDetailView: View {
 
 private struct TradeImageFullScreen:View {
     let image:UIImage
-    @Environment(.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     var body:some View {
         ZStack {
             Color.black.ignoresSafeArea()
