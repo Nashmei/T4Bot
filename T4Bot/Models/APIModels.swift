@@ -4,6 +4,7 @@ struct ServerSnapshot: Codable, Equatable, Sendable {
     let serverTime: Double
     let engine: EngineSnapshot
     let account: AccountSnapshot?
+    let live: LiveTradingSnapshot?
     let positions: [PositionSnapshot]
     let settings: TradingSettings
     let analysis: [AnalysisSnapshot]
@@ -54,6 +55,12 @@ struct AccountSnapshot: Codable, Equatable, Sendable {
     let marginFree: Double
     let profit: Double
     let isDemo: Bool
+}
+
+struct LiveTradingSnapshot: Codable, Equatable, Sendable {
+    let accountIsReal: Bool
+    let tradingUnlocked: Bool
+    let activationRequired: Bool
 }
 
 struct PositionSnapshot: Codable, Equatable, Identifiable, Sendable {
@@ -215,6 +222,11 @@ struct LoginResponse: Codable, Equatable, Sendable {
     let ok: Bool
     let message: String
     let account: AccountSnapshot?
+    let liveTradingUnlocked: Bool?
+}
+
+struct LiveActivationRequest: Codable, Sendable {
+    let confirmation: String
 }
 
 struct TradingSettingsPatch: Codable, Sendable {
