@@ -345,10 +345,10 @@ private struct TradeDetailView: View {
             .padding(.vertical,13)
     }
     private var shareText:String {
-        var text="\(title)
-Ticket: \(ticket)"
-        for r in rows{text+="
-\(r.0): \(r.1)"}
+        var text = "\(title)\nTicket: \(ticket)"
+        for r in rows {
+            text += "\n\(r.0): \(r.1)"
+        }
         return text
     }
 }
