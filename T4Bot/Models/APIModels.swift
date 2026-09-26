@@ -105,6 +105,7 @@ struct TradingSettings: Codable, Equatable, Sendable {
     var maxConsecutiveLosses: Int
     var dailyLossLimitPct: Double
     var sessionProfitLimit: Double
+    var realTradingEnabled: Bool
 
     init(
         symbols: [String],
@@ -119,7 +120,8 @@ struct TradingSettings: Codable, Equatable, Sendable {
         maxPositions: Int,
         maxConsecutiveLosses: Int,
         dailyLossLimitPct: Double,
-        sessionProfitLimit: Double = 0
+        sessionProfitLimit: Double = 0,
+        realTradingEnabled: Bool = false
     ) {
         self.symbols = symbols
         self.riskPct = riskPct
@@ -134,12 +136,13 @@ struct TradingSettings: Codable, Equatable, Sendable {
         self.maxConsecutiveLosses = maxConsecutiveLosses
         self.dailyLossLimitPct = dailyLossLimitPct
         self.sessionProfitLimit = sessionProfitLimit
+        self.realTradingEnabled = realTradingEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
         case symbols, riskPct, rr, slPoints, tpPoints, minConfidence, protectionPct
         case trailingGapPct, maxTradeMinutes, maxPositions, maxConsecutiveLosses
-        case dailyLossLimitPct, sessionProfitLimit
+        case dailyLossLimitPct, sessionProfitLimit, realTradingEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -157,6 +160,7 @@ struct TradingSettings: Codable, Equatable, Sendable {
         maxConsecutiveLosses = try c.decode(Int.self, forKey: .maxConsecutiveLosses)
         dailyLossLimitPct = try c.decode(Double.self, forKey: .dailyLossLimitPct)
         sessionProfitLimit = try c.decodeIfPresent(Double.self, forKey: .sessionProfitLimit) ?? 0
+        realTradingEnabled = try c.decodeIfPresent(Bool.self, forKey: .realTradingEnabled) ?? false
     }
 
     static let defaults = TradingSettings(
@@ -172,7 +176,8 @@ struct TradingSettings: Codable, Equatable, Sendable {
         maxPositions: 1,
         maxConsecutiveLosses: 3,
         dailyLossLimitPct: 2,
-        sessionProfitLimit: 0
+        sessionProfitLimit: 0,
+        realTradingEnabled: false
     )
 }
 
@@ -230,6 +235,7 @@ struct TradingSettingsPatch: Codable, Sendable {
     let maxConsecutiveLosses: Int
     let dailyLossLimitPct: Double
     let sessionProfitLimit: Double
+    let realTradingEnabled: Bool
 
     init(_ value: TradingSettings) {
         riskPct = value.riskPct
@@ -244,6 +250,7 @@ struct TradingSettingsPatch: Codable, Sendable {
         maxConsecutiveLosses = value.maxConsecutiveLosses
         dailyLossLimitPct = value.dailyLossLimitPct
         sessionProfitLimit = value.sessionProfitLimit
+        realTradingEnabled = value.realTradingEnabled
     }
 }
 

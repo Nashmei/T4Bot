@@ -30,6 +30,25 @@ struct AccountView:View {
                                     value("الهامش الحر",a.marginFree,a.currency)
                                 }
                             }
+                            if !a.isDemo {
+                                SurfaceCard {
+                                    Toggle(isOn: Binding(
+                                        get: { appModel.snapshot?.settings.realTradingEnabled ?? false },
+                                        set: { enabled in
+                                            guard var settings=appModel.snapshot?.settings else{return}
+                                            settings.realTradingEnabled=enabled
+                                            Task{await appModel.update(settings:settings)}
+                                        }
+                                    )) {
+                                        VStack(alignment:.leading,spacing:3) {
+                                            Text("تداول Real").fontWeight(.semibold)
+                                            Text((appModel.snapshot?.settings.realTradingEnabled ?? false) ? "مفعّل" : "مقفول")
+                                                .font(.caption).foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .disabled(appModel.snapshot?.engine.running == true || appModel.isPerformingCommand)
+                                }
+                            }
                         } else {
                             ContentUnavailableView("MT5 غير متصل",systemImage:"person.crop.circle.badge.exclamationmark",description:Text("اربط حساب MT5 للمتابعة.")).padding(.vertical,35)
                         }

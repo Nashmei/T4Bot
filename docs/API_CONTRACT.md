@@ -43,7 +43,7 @@ Important: current Mtbot `Engine.stop()` attempts to close tracked positions. T4
 }
 ```
 
-The password is never persisted by T4Bot.
+The password is never persisted by T4Bot. Broker server names are passed through unchanged; Mtbot resolves unknown MT5 broker access points server-side. Login requests allow up to 90 seconds for first-time broker discovery.
 
 ## Settings
 
@@ -54,13 +54,14 @@ Supported fields and server-compatible ranges:
 | Field | Range |
 |---|---:|
 | `risk_pct` | 0.25–50 |
-| `rr` | 0.5–10 |
+| `rr` | 0–10 |
 | `min_confidence` | 50–95 |
-| `protection_pct` | 5–90 |
-| `max_trade_minutes` | 3–240 |
+| `protection_pct` | 0–80 |
+| `max_trade_minutes` | 0–10 |
 | `max_positions` | 1–10 |
 | `max_consecutive_losses` | 0–20 |
 | `daily_loss_limit_pct` | 0–100 |
+| `real_trading_enabled` | boolean |
 
 The server is authoritative even if the client validates first.
 

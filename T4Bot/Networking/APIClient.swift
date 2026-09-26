@@ -81,11 +81,13 @@ actor APIClient {
     }
 
     func login(server: String, login: Int64, password: String, using configuration: APIConfiguration) async throws -> LoginResponse {
-        try await request(
+        let bodyData = try encoder.encode(LoginRequest(server: server, login: login, password: password))
+        return try await request(
             path: "/v1/account/login",
             method: "POST",
-            body: LoginRequest(server: server, login: login, password: password),
-            configuration: configuration
+            bodyData: bodyData,
+            configuration: configuration,
+            timeoutInterval: 90
         )
     }
 
@@ -111,11 +113,12 @@ actor APIClient {
         path: String,
         method: String,
         bodyData: Data?,
-        configuration: APIConfiguration
+        configuration: APIConfiguration,
+        timeoutInterval: TimeInterval = 20
     ) async throws -> Response {
         var request = URLRequest(url: configuration.url(path: path))
         request.httpMethod = method
-        request.timeoutInterval = 20
+        request.timeoutInterval = timeoutInterval
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
