@@ -6,6 +6,7 @@ enum PreviewData {
         serverTime: Date().timeIntervalSince1970,
         engine: .init(running: true, scanCount: 842, lastCycleSeconds: 0.31, lastCycleAt: Date().timeIntervalSince1970, trackedPositions: 2, maxPositions: 6),
         account: .init(login: 113180443, server: "MetaQuotes-Demo", currency: "USD", balance: 4943.26, equity: 5018.40, margin: 530.0, marginFree: 4488.4, profit: 75.14, isDemo: true),
+        live: .init(accountIsReal: false, tradingUnlocked: false, activationRequired: false),
         positions: [
             .init(ticket: 10689350715, symbol: "XAUUSD", side: "BUY", volume: 0.39, priceOpen: 4294.08, priceCurrent: 4296.12, sl: 4291.50, tp: 4298.50, profit: 31.80, magic: 1, imageId: nil),
             .init(ticket: 10689350716, symbol: "EURUSD", side: "SELL", volume: 0.22, priceOpen: 1.1742, priceCurrent: 1.1736, sl: 1.1760, tp: 1.1701, profit: 43.34, magic: 1, imageId: nil)
