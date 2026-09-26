@@ -42,7 +42,7 @@ struct AnalysisView: View {
                         }
                         Button { Task { await appModel.runAnalysis() } } label: {
                             Label("تحليل الأزواج النشطة",systemImage:"waveform.path.ecg")
-                                .fontWeight(.bold()).frame(maxWidth:.infinity).padding(.vertical,10)
+                                .fontWeight(.bold).frame(maxWidth:.infinity).padding(.vertical,10)
                         }.buttonStyle(.borderedProminent).tint(T4Palette.accent).disabled(selected.isEmpty || appModel.isPerformingCommand)
 
                         if let s=appModel.snapshot {
