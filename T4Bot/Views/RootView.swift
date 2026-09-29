@@ -53,10 +53,12 @@ private struct MainTabView:View {
     var body:some View {
         TabView {
             DashboardView().tabItem{Label("الرئيسية",systemImage:"house.fill")}
-            AnalysisView().tabItem{Label("التحليل",systemImage:"sparkles")}
-            PositionsView().tabItem{Label("الصفقات",systemImage:"chart.line.uptrend.xyaxis")}
-            PerformanceView().tabItem{Label("الأداء",systemImage:"chart.bar.xaxis")}
-            AccountView().tabItem{Label("الحساب",systemImage:"person.crop.circle.fill")}
+            AnalysisView().tabItem{Label("التحليل",systemImage:"waveform.path.ecg")}
+            PositionsView().tabItem{Label("الصفقات",systemImage:"arrow.up.arrow.down.circle.fill")}
+            PerformanceView().tabItem{Label("الأداء",systemImage:"chart.bar.fill")}
+            AccountView().tabItem{Label("الحساب",systemImage:"person.crop.circle")}
         }
+        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
     }
 }
