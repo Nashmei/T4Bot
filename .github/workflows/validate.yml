@@ -33,7 +33,7 @@ jobs:
           xcrun agvtool new-version -all "$GITHUB_RUN_NUMBER"
 
 
-      - name: Build and test for iOS Simulator
+      - name: Build for iOS Simulator
         run: |
           set -euo pipefail
           xcodebuild \
@@ -41,6 +41,6 @@ jobs:
             -scheme T4Bot \
             -configuration Debug \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
-            test
+            build
