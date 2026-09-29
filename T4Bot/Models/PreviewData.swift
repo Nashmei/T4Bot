@@ -10,7 +10,7 @@ enum PreviewData {
             .init(ticket: 10689350715, symbol: "XAUUSD", side: "BUY", volume: 0.39, priceOpen: 4294.08, priceCurrent: 4296.12, sl: 4291.50, tp: 4298.50, profit: 31.80, magic: 1, imageId: nil),
             .init(ticket: 10689350716, symbol: "EURUSD", side: "SELL", volume: 0.22, priceOpen: 1.1742, priceCurrent: 1.1736, sl: 1.1760, tp: 1.1701, profit: 43.34, magic: 1, imageId: nil)
         ],
-        settings: .init(symbols:["XAUUSD","EURUSD","GBPUSD"], riskPct:2, rr:0, slPoints:0, tpPoints:0, minConfidence:65, protectionPct:0, trailingGapPct:0, maxTradeMinutes:0, maxPositions:6, maxConsecutiveLosses:0, dailyLossLimitPct:0),
+        settings: .init(symbols:["XAUUSD","EURUSD","GBPUSD"], riskPct:2, rr:0, slPoints:0, tpPoints:0, minConfidence:65, protectionPct:0, trailingTriggerPct:0, trailingGapPct:0, maxPositions:6, maxConsecutiveLosses:0, dailyLossLimitPct:0),
         analysis: [
             .init(symbol:"XAUUSD",regime:"trend",state:"signal",side:"BUY",strategy:"trend_micro_pullback",confidence:78,reason:"TREND_ALIGNED",updatedAt:Date().timeIntervalSince1970),
             .init(symbol:"EURUSD",regime:"range",state:"no_signal",side:nil,strategy:nil,confidence:nil,reason:"LACK_MOMENTUM",updatedAt:Date().timeIntervalSince1970)
