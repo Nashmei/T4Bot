@@ -61,9 +61,10 @@ final class APIModelTests: XCTestCase {
         XCTAssertTrue(snapshot.readiness.ready)
     }
 
-    func testConfigurationRequiresHTTPS() {
-        XCTAssertNil(APIConfiguration(baseURLString: "http://example.com", token: "token"))
-        XCTAssertNotNil(APIConfiguration(baseURLString: "https://example.com", token: "token"))
-        XCTAssertNil(APIConfiguration(baseURLString: "https://example.com", token: ""))
+    func testConfigurationRequiresToken() {
+        XCTAssertNotNil(APIConfiguration(token: "token"))
+        XCTAssertNil(APIConfiguration(token: ""))
+        XCTAssertNil(APIConfiguration(token: "   "))
     }
 }
+
