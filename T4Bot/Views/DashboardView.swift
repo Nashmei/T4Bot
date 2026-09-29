@@ -12,7 +12,6 @@ struct DashboardView: View {
                 ScrollView {
                     if let s = appModel.snapshot {
                         VStack(spacing: 14) {
-                            connectionStatus
                             hero(s)
 
                             if let a = s.account {
@@ -64,20 +63,34 @@ struct DashboardView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 16)
                     } else {
-                        VStack(spacing: 14) {
-                            connectionStatus
-                            ContentUnavailableView(
-                                "بانتظار الاتصال",
-                                systemImage: "antenna.radiowaves.left.and.right"
-                            )
+                        VStack(spacing: 18) {
+                            Spacer(minLength: 110)
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                                .font(.system(size: 42, weight: .semibold))
+                                .foregroundStyle(T4Palette.accent)
+                            Text("جاري الاتصال")
+                                .font(.title2.bold())
+                            Text("يحاول T4Bot جلب الحالة من الخادم. إذا استمر الانتظار، ستظهر رسالة الخطأ أعلى الشاشة.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 28)
+                            ProgressView()
+                                .controlSize(.large)
                         }
+                        .frame(maxWidth: .infinity)
                         .padding(16)
                     }
                 }
                 .scrollIndicators(.hidden)
             }
             .navigationTitle("T4Bot")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    connectionStatus
+                }
+            }
             .loadingOverlay(appModel.isPerformingCommand)
             .sheet(isPresented:$showStopConfirmation) {
                 StopEngineSheet {
@@ -111,7 +124,7 @@ struct DashboardView: View {
             VStack(spacing: 18) {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("MT5 CONTROL").font(.caption2.bold()).opacity(0.72)
+                        Text("LIVE TRADING CONTROL").font(.caption2.bold()).opacity(0.72)
                         if let a=s.account {
                             Text("MT5 • " + String(a.login)).font(.title2.bold()).monospacedDigit()
                             Text(a.isDemo ? "حساب Demo" : "حساب Real").font(.caption).opacity(0.84)
