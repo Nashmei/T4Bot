@@ -1,22 +1,33 @@
 import SwiftUI
 
 enum T4Palette {
-    // Warm neutral palette used across the app and mirrored by the generated app icon.
-    static let accent = Color(red: 0.70, green: 0.49, blue: 0.14)
-    static let accent2 = Color(red: 0.90, green: 0.72, blue: 0.32)
-    static let bronze = Color(red: 0.53, green: 0.36, blue: 0.10)
-    static let positive = Color(red: 0.16, green: 0.66, blue: 0.39)
-    static let negative = Color(red: 0.91, green: 0.27, blue: 0.30)
+    static let accent = Color(red: 0.82, green: 0.58, blue: 0.18)
+    static let accent2 = Color(red: 0.95, green: 0.76, blue: 0.36)
+    static let bronze = Color(red: 0.48, green: 0.31, blue: 0.08)
+    static let positive = Color(red: 0.18, green: 0.72, blue: 0.46)
+    static let negative = Color(red: 0.94, green: 0.30, blue: 0.34)
+    static let warning = Color(red: 0.95, green: 0.66, blue: 0.18)
 }
 
 struct AppBackdrop: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        (scheme == .dark
-            ? Color(red: 0.070, green: 0.064, blue: 0.052)
-            : Color(red: 0.972, green: 0.968, blue: 0.952))
-            .ignoresSafeArea()
+        ZStack {
+            (scheme == .dark
+                ? Color(red: 0.045, green: 0.043, blue: 0.039)
+                : Color(red: 0.975, green: 0.973, blue: 0.966))
+            LinearGradient(
+                colors: [
+                    T4Palette.accent.opacity(scheme == .dark ? 0.08 : 0.05),
+                    .clear,
+                    T4Palette.accent2.opacity(scheme == .dark ? 0.035 : 0.025)
+                ],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -30,11 +41,15 @@ struct SurfaceCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 scheme == .dark
-                    ? Color.white.opacity(0.055)
-                    : Color.white.opacity(0.92),
+                    ? Color.white.opacity(0.07)
+                    : Color.white.opacity(0.96),
                 in: RoundedRectangle(cornerRadius: 24, style: .continuous)
             )
-            .shadow(color: .black.opacity(scheme == .dark ? 0.13 : 0.035), radius: 13, y: 6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.primary.opacity(scheme == .dark ? 0.06 : 0.04), lineWidth: 0.75)
+            )
+            .shadow(color: .black.opacity(scheme == .dark ? 0.18 : 0.045), radius: 18, y: 8)
     }
 }
 
