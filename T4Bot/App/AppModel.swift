@@ -61,6 +61,7 @@ final class AppModel: ObservableObject {
         startFallbackRefresh()
 
         Task {
+            await refresh(silent: true)
             await loadHistory(silent: true)
             await notifications.requestAuthorization()
         }
@@ -313,7 +314,13 @@ final class AppModel: ObservableObject {
                         await self.refresh(silent: true)
                     }
 
-                case .invalidation:
+                case .invalidation(let reason):
+                    if let reason, !reason.isEmpty {
+                        self.errorMessage = reason
+                    }
+                    if self.isAppActive {
+                        self.connectionState = .reconnecting
+                    }
                     await self.refresh(silent: true)
                 }
             }
