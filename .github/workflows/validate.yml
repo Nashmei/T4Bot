@@ -1,6 +1,10 @@
 name: Validate iOS
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -29,7 +33,14 @@ jobs:
           xcrun agvtool new-version -all "$GITHUB_RUN_NUMBER"
 
 
-      - name: Build for iOS Simulator
+      - name: Build and test for iOS Simulator
         run: |
           set -euo pipefail
-          xcodebuild             -project T4Bot.xcodeproj             -scheme T4Bot             -configuration Debug             -sdk iphonesimulator             -destination 'generic/platform=iOS Simulator'             CODE_SIGNING_ALLOWED=NO             build
+          xcodebuild \
+            -project T4Bot.xcodeproj \
+            -scheme T4Bot \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
