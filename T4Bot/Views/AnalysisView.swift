@@ -15,9 +15,9 @@ struct AnalysisView: View {
                             VStack(alignment:.leading,spacing:14) {
                                 HStack {
                                     VStack(alignment:.leading,spacing:4) {
-                                        Text("AI MARKET SCAN").font(.caption2.bold()).opacity(0.75)
-                                        Text("التحليل").font(.title.bold())
-                                        Text("اختر الأزواج التي تريد تفعيل بياناتها وتحليلها.").font(.caption).opacity(0.85)
+                                        Text("AI MARKET ANALYSIS").font(.caption2.bold()).opacity(0.75)
+                                        Text("تحليل السوق").font(.title.bold())
+                                        Text("تحليل AI مستقل عن الاستراتيجيات الأخرى ويصدر BUY / SELL / WAIT للمحرك.").font(.caption).opacity(0.88)
                                     }
                                     Spacer()
                                     Image(systemName:"sparkles").font(.title.bold())
@@ -41,7 +41,7 @@ struct AnalysisView: View {
                             }
                         }
                         Button { Task { await appModel.runAnalysis() } } label: {
-                            Label("تحليل الأزواج النشطة",systemImage:"waveform.path.ecg")
+                            Label("تحديث التحليل",systemImage:"arrow.clockwise")
                                 .fontWeight(.bold).frame(maxWidth:.infinity).padding(.vertical,10)
                         }.buttonStyle(.borderedProminent).tint(T4Palette.accent).disabled(selected.isEmpty || appModel.isPerformingCommand)
 
