@@ -99,8 +99,8 @@ struct TradingSettings: Codable, Equatable, Sendable {
     var tpPoints: Double
     var minConfidence: Double
     var protectionPct: Double
+    var trailingTriggerPct: Double
     var trailingGapPct: Double
-    var maxTradeMinutes: Double
     var maxPositions: Int
     var maxConsecutiveLosses: Int
     var dailyLossLimitPct: Double
@@ -115,8 +115,8 @@ struct TradingSettings: Codable, Equatable, Sendable {
         tpPoints: Double,
         minConfidence: Double,
         protectionPct: Double,
+        trailingTriggerPct: Double,
         trailingGapPct: Double,
-        maxTradeMinutes: Double,
         maxPositions: Int,
         maxConsecutiveLosses: Int,
         dailyLossLimitPct: Double,
@@ -130,8 +130,8 @@ struct TradingSettings: Codable, Equatable, Sendable {
         self.tpPoints = tpPoints
         self.minConfidence = minConfidence
         self.protectionPct = protectionPct
+        self.trailingTriggerPct = trailingTriggerPct
         self.trailingGapPct = trailingGapPct
-        self.maxTradeMinutes = maxTradeMinutes
         self.maxPositions = maxPositions
         self.maxConsecutiveLosses = maxConsecutiveLosses
         self.dailyLossLimitPct = dailyLossLimitPct
@@ -141,24 +141,24 @@ struct TradingSettings: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case symbols, riskPct, rr, slPoints, tpPoints, minConfidence, protectionPct
-        case trailingGapPct, maxTradeMinutes, maxPositions, maxConsecutiveLosses
+        case trailingTriggerPct, trailingGapPct, maxPositions, maxConsecutiveLosses
         case dailyLossLimitPct, sessionProfitLimit, realTradingEnabled
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        symbols = try c.decode([String].self, forKey: .symbols)
-        riskPct = try c.decode(Double.self, forKey: .riskPct)
-        rr = try c.decode(Double.self, forKey: .rr)
-        slPoints = try c.decode(Double.self, forKey: .slPoints)
-        tpPoints = try c.decode(Double.self, forKey: .tpPoints)
-        minConfidence = try c.decode(Double.self, forKey: .minConfidence)
-        protectionPct = try c.decode(Double.self, forKey: .protectionPct)
-        trailingGapPct = try c.decode(Double.self, forKey: .trailingGapPct)
-        maxTradeMinutes = try c.decode(Double.self, forKey: .maxTradeMinutes)
-        maxPositions = try c.decode(Int.self, forKey: .maxPositions)
-        maxConsecutiveLosses = try c.decode(Int.self, forKey: .maxConsecutiveLosses)
-        dailyLossLimitPct = try c.decode(Double.self, forKey: .dailyLossLimitPct)
+        symbols = try c.decodeIfPresent([String].self, forKey: .symbols) ?? []
+        riskPct = try c.decodeIfPresent(Double.self, forKey: .riskPct) ?? 0.25
+        rr = try c.decodeIfPresent(Double.self, forKey: .rr) ?? 0
+        slPoints = try c.decodeIfPresent(Double.self, forKey: .slPoints) ?? 0
+        tpPoints = try c.decodeIfPresent(Double.self, forKey: .tpPoints) ?? 0
+        minConfidence = try c.decodeIfPresent(Double.self, forKey: .minConfidence) ?? 75
+        protectionPct = try c.decodeIfPresent(Double.self, forKey: .protectionPct) ?? 0
+        trailingTriggerPct = try c.decodeIfPresent(Double.self, forKey: .trailingTriggerPct) ?? 0
+        trailingGapPct = try c.decodeIfPresent(Double.self, forKey: .trailingGapPct) ?? 0
+        maxPositions = try c.decodeIfPresent(Int.self, forKey: .maxPositions) ?? 1
+        maxConsecutiveLosses = try c.decodeIfPresent(Int.self, forKey: .maxConsecutiveLosses) ?? 3
+        dailyLossLimitPct = try c.decodeIfPresent(Double.self, forKey: .dailyLossLimitPct) ?? 0
         sessionProfitLimit = try c.decodeIfPresent(Double.self, forKey: .sessionProfitLimit) ?? 0
         realTradingEnabled = try c.decodeIfPresent(Bool.self, forKey: .realTradingEnabled) ?? false
     }
@@ -171,8 +171,8 @@ struct TradingSettings: Codable, Equatable, Sendable {
         tpPoints: 0,
         minConfidence: 75,
         protectionPct: 0,
+        trailingTriggerPct: 0,
         trailingGapPct: 0,
-        maxTradeMinutes: 0,
         maxPositions: 1,
         maxConsecutiveLosses: 3,
         dailyLossLimitPct: 2,
@@ -229,8 +229,8 @@ struct TradingSettingsPatch: Codable, Sendable {
     let tpPoints: Double
     let minConfidence: Double
     let protectionPct: Double
+    let trailingTriggerPct: Double
     let trailingGapPct: Double
-    let maxTradeMinutes: Double
     let maxPositions: Int
     let maxConsecutiveLosses: Int
     let dailyLossLimitPct: Double
@@ -244,8 +244,8 @@ struct TradingSettingsPatch: Codable, Sendable {
         tpPoints = value.tpPoints
         minConfidence = value.minConfidence
         protectionPct = value.protectionPct
+        trailingTriggerPct = value.trailingTriggerPct
         trailingGapPct = value.trailingGapPct
-        maxTradeMinutes = value.maxTradeMinutes
         maxPositions = value.maxPositions
         maxConsecutiveLosses = value.maxConsecutiveLosses
         dailyLossLimitPct = value.dailyLossLimitPct
