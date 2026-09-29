@@ -30,9 +30,12 @@ final class APIModelTests: XCTestCase {
             "symbols": ["EURUSD"],
             "risk_pct": 0.25,
             "rr": 3,
+            "sl_points": 0,
+            "tp_points": 0,
             "min_confidence": 75,
             "protection_pct": 45,
-            "max_trade_minutes": 10,
+            "trailing_trigger_pct": 70,
+            "trailing_gap_pct": 5,
             "max_positions": 3,
             "max_consecutive_losses": 3,
             "daily_loss_limit_pct": 2
@@ -54,6 +57,7 @@ final class APIModelTests: XCTestCase {
         XCTAssertTrue(snapshot.engine.running)
         XCTAssertEqual(snapshot.account?.login, 113110182)
         XCTAssertEqual(snapshot.settings.symbols, ["EURUSD"])
+        XCTAssertEqual(snapshot.settings.trailingTriggerPct, 70)
         XCTAssertTrue(snapshot.readiness.ready)
     }
 
