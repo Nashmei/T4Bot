@@ -67,9 +67,9 @@ private struct TradeManagementSettingsView: View {
     var body:some View {
         Form {
             Section {
-                number("R:R Override","rr",$draft.rr,"0 = AI يختار SL/TP."); number("SL Points","sl",$draft.slPoints,"0 = AI"); number("TP Points","tp",$draft.tpPoints,"0 = AI"); number("الحماية %","protect",$draft.protectionPct,"0 = AI"); number("Trailing Gap %","trail",$draft.trailingGapPct,"0 = AI"); number("المدة بالدقائق","duration",$draft.maxTradeMinutes,"0 = AI")
-            } footer:{Text("القيمة 0 تعني أن AI يدير هذا الجزء تلقائياً.")}
-            Section { Button("إرجاع إدارة الصفقة إلى AI") { draft.rr=0; draft.slPoints=0; draft.tpPoints=0; draft.protectionPct=0; draft.trailingGapPct=0; draft.maxTradeMinutes=0 } }
+                number("R:R Override","rr",$draft.rr,"0 = AI يختار SL/TP."); number("SL Points","sl",$draft.slPoints,"0 = AI"); number("TP Points","tp",$draft.tpPoints,"0 = AI"); number("الحماية %","protect",$draft.protectionPct,"0 = افتراضي الاستراتيجية"); number("بدء التتبع %","trailStart",$draft.trailingTriggerPct,"0 = افتراضي الاستراتيجية"); number("فجوة التتبع %","trail",$draft.trailingGapPct,"0 = افتراضي الاستراتيجية")
+            } footer:{Text("القيمة 0 تعني استخدام الإعداد الافتراضي للمحرك/الاستراتيجية. لا توجد مدة زمنية للصفقة.")}
+            Section { Button("إرجاع إدارة الصفقة للإعدادات التلقائية") { draft.rr=0; draft.slPoints=0; draft.tpPoints=0; draft.protectionPct=0; draft.trailingTriggerPct=0; draft.trailingGapPct=0 } }
             Section { Button { focused=nil; Task{await appModel.update(settings:draft)} } label:{ Label("حفظ التغييرات",systemImage:"checkmark.circle.fill").frame(maxWidth:.infinity) }.disabled(appModel.isPerformingCommand) }
         }.t4ListBackground().scrollDismissesKeyboard(.interactively).navigationTitle("إدارة الصفقة").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItemGroup(placement:.keyboard){Spacer();Button("تم"){focused=nil}.fontWeight(.semibold)}}.onAppear{draft=appModel.snapshot?.settings ?? .defaults}
     }
