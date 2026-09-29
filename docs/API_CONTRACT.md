@@ -54,16 +54,19 @@ Supported fields and server-compatible ranges:
 | Field | Range |
 |---|---:|
 | `risk_pct` | 0.25–50 |
-| `rr` | 0–10 |
+| `rr` | 0–5 |
+| `sl_points` | 0–100000 |
+| `tp_points` | 0–100000 |
 | `min_confidence` | 50–95 |
 | `protection_pct` | 0–80 |
-| `max_trade_minutes` | 0–10 |
+| `trailing_trigger_pct` | 0–100 |
+| `trailing_gap_pct` | 0–25 |
 | `max_positions` | 1–10 |
 | `max_consecutive_losses` | 0–20 |
 | `daily_loss_limit_pct` | 0–100 |
 | `real_trading_enabled` | boolean |
 
-The server is authoritative even if the client validates first.
+There is no trade-duration field. Open trades are managed by SL/TP/protection/trailing logic, not by a time limit. The server is authoritative even if the client validates first.
 
 ## Symbols
 
