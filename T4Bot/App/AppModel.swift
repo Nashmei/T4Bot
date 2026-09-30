@@ -142,6 +142,10 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshSnapshot() async {
+        await refresh()
+    }
+
     func refreshSupportingData(silent: Bool = false) async {
         await loadHistory(silent: silent)
     }
