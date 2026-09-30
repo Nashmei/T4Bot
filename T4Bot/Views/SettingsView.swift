@@ -1,90 +1,91 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @EnvironmentObject private var appModel: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft = TradingSettings.defaults
+    @State private var loaded = false
+
     var body: some View {
-        List {
-            NavigationLink { AppearanceSettingsView() } label: { SettingsRoute(icon:"circle.lefthalf.filled", title:"المظهر", subtitle:"تلقائي، فاتح أو داكن") }
-            NavigationLink { RiskSettingsView() } label: { SettingsRoute(icon:"shield.lefthalf.filled", title:"المخاطرة والحدود", subtitle:"المخاطرة، الثقة، حدود الجلسة والمراكز") }
-            NavigationLink { TradeManagementSettingsView() } label: { SettingsRoute(icon:"brain.head.profile", title:"إدارة الصفقة", subtitle:"R:R و SL/TP والحماية والتتبع") }
-            NavigationLink { NotificationSettingsView() } label: { SettingsRoute(icon:"bell.fill", title:"الإشعارات", subtitle:"صفقات، حماية الربح وهدف الجلسة") }
+        ZStack {
+            AppBackdrop()
+            ScrollView {
+                VStack(spacing: 12) {
+                    riskPanel
+                    limitsPanel
+                    executionPanel
+                }
+                .padding(16)
+            }
         }
-        .listStyle(.insetGrouped)
-        .t4ListBackground()
-        .navigationTitle("الإعدادات")
+        .navigationTitle("إعدادات التداول")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("حفظ") {
+                    Task { await appModel.update(settings: draft); dismiss() }
+                }
+                .fontWeight(.semibold)
+                .disabled(appModel.isPerformingCommand)
+            }
+        }
+        .onAppear {
+            guard !loaded else { return }
+            if let settings = appModel.snapshot?.settings { draft = settings }
+            loaded = true
+        }
+        .loadingOverlay(appModel.isPerformingCommand)
     }
-}
 
-private struct SettingsRoute: View {
-    let icon:String; let title:String; let subtitle:String
-    var body: some View {
-        HStack(spacing:13) {
-            Image(systemName:icon).font(.headline).foregroundStyle(T4Palette.accent).frame(width:38,height:38).background(T4Palette.accent.opacity(0.10),in:RoundedRectangle(cornerRadius:11,style:.continuous))
-            VStack(alignment:.leading,spacing:3) { Text(title).font(.body.weight(.semibold)); Text(subtitle).font(.caption).foregroundStyle(.secondary) }
-        }.padding(.vertical,5)
-    }
-}
-
-private struct AppearanceSettingsView: View {
-    @AppStorage("appearance") private var appearance=AppAppearance.system.rawValue
-    var body:some View {
-        List {
-            ForEach(AppAppearance.allCases) { option in
-                Button { appearance=option.rawValue } label: {
-                    HStack { Label(option.title,systemImage:icon(option)).foregroundStyle(.primary); Spacer(); if appearance == option.rawValue { Image(systemName:"checkmark.circle.fill").foregroundStyle(T4Palette.accent) } }
+    private var riskPanel: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader("المخاطرة", subtitle: "هذه إعدادات مستوى الحساب؛ الاستراتيجية تحدد Entry / SL / TP")
+                Stepper(value: $draft.riskPct, in: 0.05...20, step: 0.05) {
+                    row("المخاطرة لكل صفقة", String(format: "%.2f%%", draft.riskPct))
+                }
+                Stepper(value: $draft.dailyLossLimitPct, in: 0...30, step: 0.5) {
+                    row("حد الخسارة اليومي", String(format: "%.1f%%", draft.dailyLossLimitPct))
+                }
+                Stepper(value: $draft.sessionProfitLimit, in: 0...100000, step: 10) {
+                    row("هدف الجلسة", draft.sessionProfitLimit == 0 ? "معطل" : draft.sessionProfitLimit.formatted(.number.precision(.fractionLength(0...2))))
                 }
             }
-        }.listStyle(.insetGrouped).t4ListBackground().navigationTitle("المظهر").navigationBarTitleDisplayMode(.inline)
+        }
     }
-    private func icon(_ option:AppAppearance)->String { switch option { case .system:return "iphone"; case .dark:return "moon.fill"; case .light:return "sun.max.fill" } }
-}
 
-private struct RiskSettingsView: View {
-    @EnvironmentObject private var appModel:AppModel
-    @State private var draft=TradingSettings.defaults
-    @FocusState private var focused:String?
-    var body:some View {
-        Form {
-            Section("المخاطرة") { number("المخاطرة %","risk",$draft.riskPct,"نسبة المخاطرة النقدية لكل صفقة."); number("الحد الأدنى للثقة %","confidence",$draft.minConfidence,"أقل ثقة يسمح بعدها بالدخول.") }
-            Section("حدود التشغيل") {
-                Stepper("حد المراكز: \(draft.maxPositions)",value:$draft.maxPositions,in:1...10)
-                Stepper("حد الخسائر المتتالية: \(draft.maxConsecutiveLosses)",value:$draft.maxConsecutiveLosses,in:0...20)
-                number("حد Equity اليومي %","equity",$draft.dailyLossLimitPct,"0 = معطل.")
-                number("حد ربح الجلسة $","session",$draft.sessionProfitLimit,"يُحسب من Balance المحقق بعد إغلاق الصفقات. 0 = بدون حد.")
+    private var limitsPanel: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader("الحدود والحماية")
+                Stepper(value: $draft.maxPositions, in: 1...20) {
+                    row("أقصى مراكز مفتوحة", "\(draft.maxPositions)")
+                }
+                Stepper(value: $draft.maxConsecutiveLosses, in: 0...20) {
+                    row("الخسائر المتتالية", draft.maxConsecutiveLosses == 0 ? "معطل" : "\(draft.maxConsecutiveLosses)")
+                }
             }
-            Section { Button { focused=nil; Task{await appModel.update(settings:draft)} } label:{ Label("حفظ التغييرات",systemImage:"checkmark.circle.fill").frame(maxWidth:.infinity) }.disabled(appModel.isPerformingCommand) }
-        }.t4ListBackground().scrollDismissesKeyboard(.interactively).navigationTitle("المخاطرة والحدود").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItemGroup(placement:.keyboard){Spacer();Button("تم"){focused=nil}.fontWeight(.semibold)}}.onAppear{draft=appModel.snapshot?.settings ?? .defaults}
+        }
     }
-    @ViewBuilder private func number(_ title:String,_ key:String,_ value:Binding<Double>,_ help:String)->some View {
-        VStack(alignment:.leading,spacing:5) { HStack { Text(title); Spacer(); TextField("0",value:value,format:.number.precision(.fractionLength(0...2))).multilineTextAlignment(.trailing).keyboardType(.numbersAndPunctuation).submitLabel(.done).focused($focused,equals:key).onSubmit{focused=nil}.frame(width:105) }; Text(help).font(.caption2).foregroundStyle(.secondary) }
-    }
-}
 
-private struct TradeManagementSettingsView: View {
-    @EnvironmentObject private var appModel:AppModel
-    @State private var draft=TradingSettings.defaults
-    @FocusState private var focused:String?
-    var body:some View {
-        Form {
-            Section {
-                number("R:R Override","rr",$draft.rr,"0 = AI يختار SL/TP."); number("SL Points","sl",$draft.slPoints,"0 = AI"); number("TP Points","tp",$draft.tpPoints,"0 = AI"); number("الحماية %","protect",$draft.protectionPct,"0 = افتراضي الاستراتيجية"); number("بدء التتبع %","trailStart",$draft.trailingTriggerPct,"0 = افتراضي الاستراتيجية"); number("فجوة التتبع %","trail",$draft.trailingGapPct,"0 = افتراضي الاستراتيجية")
-            } footer:{Text("القيمة 0 تعني استخدام الإعداد الافتراضي للمحرك/الاستراتيجية. لا توجد مدة زمنية للصفقة.")}
-            Section { Button("إرجاع إدارة الصفقة للإعدادات التلقائية") { draft.rr=0; draft.slPoints=0; draft.tpPoints=0; draft.protectionPct=0; draft.trailingTriggerPct=0; draft.trailingGapPct=0 } }
-            Section { Button { focused=nil; Task{await appModel.update(settings:draft)} } label:{ Label("حفظ التغييرات",systemImage:"checkmark.circle.fill").frame(maxWidth:.infinity) }.disabled(appModel.isPerformingCommand) }
-        }.t4ListBackground().scrollDismissesKeyboard(.interactively).navigationTitle("إدارة الصفقة").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItemGroup(placement:.keyboard){Spacer();Button("تم"){focused=nil}.fontWeight(.semibold)}}.onAppear{draft=appModel.snapshot?.settings ?? .defaults}
+    private var executionPanel: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("نوع الحساب")
+                Toggle("السماح بالتداول الحقيقي", isOn: $draft.realTradingEnabled)
+                    .tint(T4Palette.negative)
+                Text("لا يغيّر هذا الزر حساب MT5 نفسه. يحدد فقط هل T4Bot يسمح بالتنفيذ عندما يكون الحساب Real.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
-    @ViewBuilder private func number(_ title:String,_ key:String,_ value:Binding<Double>,_ help:String)->some View {
-        VStack(alignment:.leading,spacing:5) { HStack { Text(title); Spacer(); TextField("0",value:value,format:.number.precision(.fractionLength(0...2))).multilineTextAlignment(.trailing).keyboardType(.numbersAndPunctuation).submitLabel(.done).focused($focused,equals:key).onSubmit{focused=nil}.frame(width:105) }; Text(help).font(.caption2).foregroundStyle(.secondary) }
-    }
-}
 
-private struct NotificationSettingsView: View {
-    @EnvironmentObject private var notificationManager:NotificationManager
-    var body:some View {
-        Form {
-            Section("طريقة العرض") { Toggle("داخل التطبيق",isOn:$notificationManager.inAppEnabled); Toggle("إشعارات iOS",isOn:$notificationManager.outsideEnabled) }
-            Section("أحداث البوت") { Toggle("فتح صفقة",isOn:$notificationManager.tradeOpened); Toggle("إغلاق صفقة",isOn:$notificationManager.tradeClosed); Toggle("حماية الربح",isOn:$notificationManager.profitProtection); Toggle("تم تحقيق هدف الجلسة 💵",isOn:$notificationManager.sessionGoal) }
-            Section { LabeledContent("صلاحية iOS",value:notificationManager.authorizationStatusText) }
-        }.t4ListBackground().navigationTitle("الإشعارات").navigationBarTitleDisplayMode(.inline).task{await notificationManager.refreshAuthorizationStatus()}
+    private func row(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value).monospacedDigit().foregroundStyle(.secondary)
+        }
     }
 }
