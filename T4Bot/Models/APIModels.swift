@@ -8,6 +8,8 @@ struct ServerSnapshot: Codable, Equatable, Sendable {
     let settings: TradingSettings
     let analysis: [AnalysisSnapshot]
     let readiness: ReadinessSnapshot
+    let accountGuard: AccountGuardSnapshot?
+    let strategyStats: [StrategyStat]?
 }
 
 struct EngineSnapshot: Codable, Equatable, Sendable {
@@ -20,28 +22,9 @@ struct EngineSnapshot: Codable, Equatable, Sendable {
     let sessionStartBalance: Double?
     let sessionProfit: Double?
     let sessionProfitHit: Bool?
-
-    init(
-        running: Bool,
-        scanCount: Int,
-        lastCycleSeconds: Double,
-        lastCycleAt: Double,
-        trackedPositions: Int,
-        maxPositions: Int,
-        sessionStartBalance: Double? = nil,
-        sessionProfit: Double? = nil,
-        sessionProfitHit: Bool? = nil
-    ) {
-        self.running = running
-        self.scanCount = scanCount
-        self.lastCycleSeconds = lastCycleSeconds
-        self.lastCycleAt = lastCycleAt
-        self.trackedPositions = trackedPositions
-        self.maxPositions = maxPositions
-        self.sessionStartBalance = sessionStartBalance
-        self.sessionProfit = sessionProfit
-        self.sessionProfitHit = sessionProfitHit
-    }
+    let selectedStrategy: String?
+    let currentRegime: String?
+    let lastDecision: String?
 }
 
 struct AccountSnapshot: Codable, Equatable, Sendable {
@@ -68,7 +51,10 @@ struct PositionSnapshot: Codable, Equatable, Identifiable, Sendable {
     let profit: Double
     let magic: Int
     let imageId: String?
-
+    let strategy: String?
+    let regime: String?
+    let riskCash: Double?
+    let riskPct: Double?
     var id: Int64 { ticket }
 }
 
@@ -89,11 +75,20 @@ struct ClosedTrade: Codable, Equatable, Identifiable, Sendable {
     let result: String
     let reason: String
     let imageId: String?
+    let regime: String?
+    let rMultiple: Double?
 }
 
 struct TradingSettings: Codable, Equatable, Sendable {
     var symbols: [String]
     var riskPct: Double
+    var maxPositions: Int
+    var maxConsecutiveLosses: Int
+    var dailyLossLimitPct: Double
+    var sessionProfitLimit: Double
+    var realTradingEnabled: Bool
+
+    // Legacy fields kept for backward compatibility with older servers.
     var rr: Double
     var slPoints: Double
     var tpPoints: Double
@@ -101,83 +96,22 @@ struct TradingSettings: Codable, Equatable, Sendable {
     var protectionPct: Double
     var trailingTriggerPct: Double
     var trailingGapPct: Double
-    var maxPositions: Int
-    var maxConsecutiveLosses: Int
-    var dailyLossLimitPct: Double
-    var sessionProfitLimit: Double
-    var realTradingEnabled: Bool
-
-    init(
-        symbols: [String],
-        riskPct: Double,
-        rr: Double,
-        slPoints: Double,
-        tpPoints: Double,
-        minConfidence: Double,
-        protectionPct: Double,
-        trailingTriggerPct: Double,
-        trailingGapPct: Double,
-        maxPositions: Int,
-        maxConsecutiveLosses: Int,
-        dailyLossLimitPct: Double,
-        sessionProfitLimit: Double = 0,
-        realTradingEnabled: Bool = false
-    ) {
-        self.symbols = symbols
-        self.riskPct = riskPct
-        self.rr = rr
-        self.slPoints = slPoints
-        self.tpPoints = tpPoints
-        self.minConfidence = minConfidence
-        self.protectionPct = protectionPct
-        self.trailingTriggerPct = trailingTriggerPct
-        self.trailingGapPct = trailingGapPct
-        self.maxPositions = maxPositions
-        self.maxConsecutiveLosses = maxConsecutiveLosses
-        self.dailyLossLimitPct = dailyLossLimitPct
-        self.sessionProfitLimit = sessionProfitLimit
-        self.realTradingEnabled = realTradingEnabled
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case symbols, riskPct, rr, slPoints, tpPoints, minConfidence, protectionPct
-        case trailingTriggerPct, trailingGapPct, maxPositions, maxConsecutiveLosses
-        case dailyLossLimitPct, sessionProfitLimit, realTradingEnabled
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        symbols = try c.decodeIfPresent([String].self, forKey: .symbols) ?? []
-        riskPct = try c.decodeIfPresent(Double.self, forKey: .riskPct) ?? 0.25
-        rr = try c.decodeIfPresent(Double.self, forKey: .rr) ?? 0
-        slPoints = try c.decodeIfPresent(Double.self, forKey: .slPoints) ?? 0
-        tpPoints = try c.decodeIfPresent(Double.self, forKey: .tpPoints) ?? 0
-        minConfidence = try c.decodeIfPresent(Double.self, forKey: .minConfidence) ?? 75
-        protectionPct = try c.decodeIfPresent(Double.self, forKey: .protectionPct) ?? 0
-        trailingTriggerPct = try c.decodeIfPresent(Double.self, forKey: .trailingTriggerPct) ?? 0
-        trailingGapPct = try c.decodeIfPresent(Double.self, forKey: .trailingGapPct) ?? 0
-        maxPositions = try c.decodeIfPresent(Int.self, forKey: .maxPositions) ?? 1
-        maxConsecutiveLosses = try c.decodeIfPresent(Int.self, forKey: .maxConsecutiveLosses) ?? 3
-        dailyLossLimitPct = try c.decodeIfPresent(Double.self, forKey: .dailyLossLimitPct) ?? 0
-        sessionProfitLimit = try c.decodeIfPresent(Double.self, forKey: .sessionProfitLimit) ?? 0
-        realTradingEnabled = try c.decodeIfPresent(Bool.self, forKey: .realTradingEnabled) ?? false
-    }
 
     static let defaults = TradingSettings(
         symbols: ["EURUSD"],
         riskPct: 0.25,
-        rr: 0,
-        slPoints: 0,
-        tpPoints: 0,
-        minConfidence: 75,
-        protectionPct: 0,
-        trailingTriggerPct: 0,
-        trailingGapPct: 0,
         maxPositions: 1,
         maxConsecutiveLosses: 3,
         dailyLossLimitPct: 2,
         sessionProfitLimit: 0,
-        realTradingEnabled: false
+        realTradingEnabled: false,
+        rr: 0,
+        slPoints: 0,
+        tpPoints: 0,
+        minConfidence: 0,
+        protectionPct: 0,
+        trailingTriggerPct: 0,
+        trailingGapPct: 0
     )
 }
 
@@ -186,10 +120,27 @@ struct ReadinessSnapshot: Codable, Equatable, Sendable {
     let tradeAllowed: Bool
     let accountTradeAllowed: Bool
     let tradeExpert: Bool
+    var ready: Bool { connected && tradeAllowed && accountTradeAllowed && tradeExpert }
+}
 
-    var ready: Bool {
-        connected && tradeAllowed && accountTradeAllowed && tradeExpert
-    }
+struct AccountGuardSnapshot: Codable, Equatable, Sendable {
+    let blocked: Bool
+    let reason: String?
+    let dailyPnl: Double?
+    let drawdownPct: Double?
+    let consecutiveLosses: Int?
+}
+
+struct StrategyStat: Codable, Equatable, Identifiable, Sendable {
+    let strategy: String
+    let symbol: String?
+    let regime: String?
+    let trades: Int?
+    let winRate: Double?
+    let profitFactor: Double?
+    let expectancyR: Double?
+    let enabled: Bool?
+    var id: String { [strategy, symbol ?? "", regime ?? ""].joined(separator: "|") }
 }
 
 struct AnalysisSnapshot: Codable, Equatable, Identifiable, Sendable {
@@ -201,7 +152,10 @@ struct AnalysisSnapshot: Codable, Equatable, Identifiable, Sendable {
     let confidence: Double?
     let reason: String?
     let updatedAt: Double
-
+    let direction: String?
+    let strength: Double?
+    let reasonCode: String?
+    let evaluatedCount: Int?
     var id: String { symbol }
 }
 
@@ -224,6 +178,11 @@ struct LoginResponse: Codable, Equatable, Sendable {
 
 struct TradingSettingsPatch: Codable, Sendable {
     let riskPct: Double
+    let maxPositions: Int
+    let maxConsecutiveLosses: Int
+    let dailyLossLimitPct: Double
+    let sessionProfitLimit: Double
+    let realTradingEnabled: Bool
     let rr: Double
     let slPoints: Double
     let tpPoints: Double
@@ -231,32 +190,25 @@ struct TradingSettingsPatch: Codable, Sendable {
     let protectionPct: Double
     let trailingTriggerPct: Double
     let trailingGapPct: Double
-    let maxPositions: Int
-    let maxConsecutiveLosses: Int
-    let dailyLossLimitPct: Double
-    let sessionProfitLimit: Double
-    let realTradingEnabled: Bool
 
-    init(_ value: TradingSettings) {
-        riskPct = value.riskPct
-        rr = value.rr
-        slPoints = value.slPoints
-        tpPoints = value.tpPoints
-        minConfidence = value.minConfidence
-        protectionPct = value.protectionPct
-        trailingTriggerPct = value.trailingTriggerPct
-        trailingGapPct = value.trailingGapPct
-        maxPositions = value.maxPositions
-        maxConsecutiveLosses = value.maxConsecutiveLosses
-        dailyLossLimitPct = value.dailyLossLimitPct
-        sessionProfitLimit = value.sessionProfitLimit
-        realTradingEnabled = value.realTradingEnabled
+    init(_ v: TradingSettings) {
+        riskPct = v.riskPct
+        maxPositions = v.maxPositions
+        maxConsecutiveLosses = v.maxConsecutiveLosses
+        dailyLossLimitPct = v.dailyLossLimitPct
+        sessionProfitLimit = v.sessionProfitLimit
+        realTradingEnabled = v.realTradingEnabled
+        rr = v.rr
+        slPoints = v.slPoints
+        tpPoints = v.tpPoints
+        minConfidence = v.minConfidence
+        protectionPct = v.protectionPct
+        trailingTriggerPct = v.trailingTriggerPct
+        trailingGapPct = v.trailingGapPct
     }
 }
 
-struct SymbolsUpdateRequest: Codable, Sendable {
-    let symbols: [String]
-}
+struct SymbolsUpdateRequest: Codable, Sendable { let symbols: [String] }
 
 struct SymbolsResponse: Codable, Equatable, Sendable {
     let selected: [String]
@@ -272,46 +224,32 @@ struct AuditEntry: Codable, Equatable, Identifiable, Sendable {
     let event: String
     let symbol: String
     let details: [String: JSONValue]
-
     var displayID: Int { id }
 }
 
 enum JSONValue: Codable, Equatable, Sendable {
-    case string(String)
-    case number(Double)
-    case bool(Bool)
-    case object([String: JSONValue])
-    case array([JSONValue])
-    case null
+    case string(String), number(Double), bool(Bool), object([String: JSONValue]), array([JSONValue]), null
 
     init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() {
-            self = .null
-        } else if let value = try? container.decode(Bool.self) {
-            self = .bool(value)
-        } else if let value = try? container.decode(Double.self) {
-            self = .number(value)
-        } else if let value = try? container.decode(String.self) {
-            self = .string(value)
-        } else if let value = try? container.decode([String: JSONValue].self) {
-            self = .object(value)
-        } else if let value = try? container.decode([JSONValue].self) {
-            self = .array(value)
-        } else {
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported JSON value")
-        }
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let v = try? c.decode(Bool.self) { self = .bool(v) }
+        else if let v = try? c.decode(Double.self) { self = .number(v) }
+        else if let v = try? c.decode(String.self) { self = .string(v) }
+        else if let v = try? c.decode([String: JSONValue].self) { self = .object(v) }
+        else if let v = try? c.decode([JSONValue].self) { self = .array(v) }
+        else { throw DecodingError.dataCorruptedError(in: c, debugDescription: "Unsupported JSON value") }
     }
 
     func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
+        var c = encoder.singleValueContainer()
         switch self {
-        case .string(let value): try container.encode(value)
-        case .number(let value): try container.encode(value)
-        case .bool(let value): try container.encode(value)
-        case .object(let value): try container.encode(value)
-        case .array(let value): try container.encode(value)
-        case .null: try container.encodeNil()
+        case .string(let v): try c.encode(v)
+        case .number(let v): try c.encode(v)
+        case .bool(let v): try c.encode(v)
+        case .object(let v): try c.encode(v)
+        case .array(let v): try c.encode(v)
+        case .null: try c.encodeNil()
         }
     }
 }
