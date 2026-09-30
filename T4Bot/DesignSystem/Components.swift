@@ -3,6 +3,7 @@ import SwiftUI
 enum T4Palette {
     static let accent = Color(red: 0.33, green: 0.47, blue: 0.98)
     static let accentSoft = Color(red: 0.47, green: 0.58, blue: 1.00)
+    static let accent2 = accentSoft
     static let positive = Color(red: 0.16, green: 0.72, blue: 0.46)
     static let negative = Color(red: 0.94, green: 0.29, blue: 0.34)
     static let warning = Color(red: 0.96, green: 0.65, blue: 0.16)
@@ -162,5 +163,15 @@ struct BrandMark: View {
                 .foregroundStyle(.white)
         }
         .frame(width: size, height: size)
+    }
+}
+
+
+/// Compatibility container for legacy screens that have not yet migrated to Panel.
+struct SurfaceCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        Panel { content }
     }
 }
